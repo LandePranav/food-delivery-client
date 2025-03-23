@@ -5,8 +5,9 @@ import { LuShoppingCart } from "react-icons/lu";
 import { useContext, useState } from "react";
 import { context } from "@/context/contextProvider";
 import { motion } from "motion/react";
+import { UtensilsCrossed } from "lucide-react";
 
-export default function Card({ image, title, description, price }) {
+export default function Card({ id, category, image, name, description, price }) {
   const {cartItems, setCartItems} = useContext(context);
   const [isVibrating, setIsVibrating] = useState(false);
 
@@ -17,8 +18,10 @@ export default function Card({ image, title, description, price }) {
 
   const addToCart = () => {
     setCartItems((prev) => [...prev, {
+      id,
+      category,
       image,
-      title,
+      name,
       description,
       price
     }]);
@@ -28,11 +31,19 @@ export default function Card({ image, title, description, price }) {
     return (
       <article className="w-full overflow-clip h-full flex flex-col p-6 relative rounded-xl shadow-lg border border-white border-opacity-10 backdrop-blur-3xl bg-gray-300 bg-opacity-5">
         <div className="h-1/2 w-full relative mb-4">
-            <Image src={image} alt="produtImg" fill className="object-contain" />
+            {
+              image ? (
+                <Image src={image} alt="produtImg" fill className="object-contain" />
+              ) : (
+                <div className="flex items-center justify-center h-full">
+                  <UtensilsCrossed className="w-14 h-14" />
+                </div>
+              )
+            }
         </div>
         <div className="h-1/2 flex flex-col justify-between w-full">
           <h3 className="w-full text-nowrap overflow-ellipsis">
-            {title}
+            {name}
           </h3>
           <p className="line-clamp-2 text-[#999999] break-words">
             {description}

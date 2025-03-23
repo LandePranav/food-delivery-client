@@ -1,0 +1,71 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Seller {
+  id                String    @id @unique @default(uuid())
+  username          String    @unique
+  email             String    @unique
+  phone             String    @unique
+  address           String?
+  password          String
+  profile           String?
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  isVerified        Boolean   @default(false)
+  verificationToken String?
+  orders            Order[]
+  products          Product[]
+
+  @@map("sellers")
+}
+
+model User {
+  id        String   @id @unique @default(uuid())
+  username  String   @unique
+  email     String   @unique
+  phone     String   @unique
+  password  String
+  address   String
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  orders    Order[]
+
+  @@map("users")
+}
+
+model Product {
+  id          String   @id @unique @default(uuid())
+  sellerId    String
+  name        String
+  price       Int
+  category    String
+  description String
+  imageUrl    String
+  visible     Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  seller      Seller   @relation(fields: [sellerId], references: [id])
+
+  @@map("products")
+}
+
+model Order {
+  id              String   @id @unique @default(uuid())
+  userId          String
+  sellerId        String
+  productList     String[]
+  totalPrice      Int?
+  deliveryAddress String
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  seller          Seller   @relation(fields: [sellerId], references: [id])
+  user            User     @relation(fields: [userId], references: [id])
+
+  @@map("orders")
+}
