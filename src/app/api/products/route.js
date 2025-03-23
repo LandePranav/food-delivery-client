@@ -8,6 +8,7 @@ const prisma = new PrismaClient().$extends(withAccelerate());
 export async function GET() {
     try {
         const response = await prisma.product.findMany();
+        console.log(response);
         if (!response) {
             return NextResponse.json({ error: "No products found" }, { status: 404 });
         }

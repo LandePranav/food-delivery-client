@@ -82,11 +82,11 @@ import { MinusIcon, PlusIcon } from "lucide-react";
               <TableCell className="text-center">{item.price}</TableCell>
               <TableCell className="text-center">
                 <div className="flex items-center justify-center gap-3">
-                    <Button size="icon" className="rounded-full bg-black text-white border-2 border-red-400 p-1" onClick={() => handleRemoveItem(item.id)}>
+                    <Button size="icon" className="rounded-full bg-black text-white border border-white hover:border-red-400 hover:text-red-400 p-1" onClick={() => handleRemoveItem(item.id)}>
                         <MinusIcon className="w-5 h-5" />
                     </Button>
                     {item.quantity}
-                    <Button size="icon" className="rounded-full bg-black text-white border-2 border-green-400 p-1" onClick={() => handleAddItem(item.id)}>
+                    <Button size="icon" className="rounded-full bg-black text-white border border-white hover:border-green-400 hover:text-green-400 p-1" onClick={() => handleAddItem(item.id)}>
                         <PlusIcon className="w-5 h-5" />
                     </Button>
                 </div>

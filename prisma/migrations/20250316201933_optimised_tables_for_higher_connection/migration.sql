@@ -1,16 +1,32 @@
+/*
+  Warnings:
+
+  - You are about to drop the `Order` table. If the table is not empty, all the data it contains will be lost.
+  - You are about to drop the `Product` table. If the table is not empty, all the data it contains will be lost.
+  - You are about to drop the `User` table. If the table is not empty, all the data it contains will be lost.
+
+*/
+-- DropTable
+DROP TABLE "Order";
+
+-- DropTable
+DROP TABLE "Product";
+
+-- DropTable
+DROP TABLE "User";
+
 -- CreateTable
 CREATE TABLE "sellers" (
     "id" TEXT NOT NULL,
     "username" TEXT NOT NULL,
     "email" TEXT NOT NULL,
-    "phone" TEXT NOT NULL,
-    "address" TEXT,
+    "phone" INTEGER,
+    "address" TEXT NOT NULL,
     "password" TEXT NOT NULL,
     "profile" TEXT,
+    "verified" BOOLEAN NOT NULL DEFAULT false,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updatedAt" TIMESTAMP(3) NOT NULL,
-    "isVerified" BOOLEAN NOT NULL DEFAULT false,
-    "verificationToken" TEXT,
 
     CONSTRAINT "sellers_pkey" PRIMARY KEY ("id")
 );
@@ -20,7 +36,7 @@ CREATE TABLE "users" (
     "id" TEXT NOT NULL,
     "username" TEXT NOT NULL,
     "email" TEXT NOT NULL,
-    "phone" TEXT NOT NULL,
+    "phone" INTEGER,
     "password" TEXT NOT NULL,
     "address" TEXT NOT NULL,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -34,7 +50,7 @@ CREATE TABLE "products" (
     "id" TEXT NOT NULL,
     "sellerId" TEXT NOT NULL,
     "name" TEXT NOT NULL,
-    "price" INTEGER NOT NULL,
+    "price" INTEGER,
     "category" TEXT NOT NULL,
     "description" TEXT NOT NULL,
     "imageUrl" TEXT NOT NULL,
@@ -93,7 +109,7 @@ CREATE UNIQUE INDEX "orders_id_key" ON "orders"("id");
 ALTER TABLE "products" ADD CONSTRAINT "products_sellerId_fkey" FOREIGN KEY ("sellerId") REFERENCES "sellers"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "orders" ADD CONSTRAINT "orders_sellerId_fkey" FOREIGN KEY ("sellerId") REFERENCES "sellers"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "orders" ADD CONSTRAINT "orders_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
 
 -- AddForeignKey
-ALTER TABLE "orders" ADD CONSTRAINT "orders_userId_fkey" FOREIGN KEY ("userId") REFERENCES "users"("id") ON DELETE RESTRICT ON UPDATE CASCADE;
+ALTER TABLE "orders" ADD CONSTRAINT "orders_sellerId_fkey" FOREIGN KEY ("sellerId") REFERENCES "sellers"("id") ON DELETE RESTRICT ON UPDATE CASCADE;

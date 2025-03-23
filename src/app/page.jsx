@@ -15,6 +15,7 @@ export default function Home() {
     useEffect(() => {
     const fetchProducts = async () => {
       const response = await api.get("/products");
+      console.log(response.data);
       if (response.status === 200) {
         // console.log(response.data);
         setProducts(response.data);
@@ -36,7 +37,7 @@ export default function Home() {
         <div className="w-full h-[325px] flex gap-5 py-3 overflow-x-auto">
           {products.map((item)=>(
               <div key={item.id} className="min-w-[230px] w-[230px]">
-                <Card id={item.id} category={item.category} image={item.imageUrl} name={item.name} description={item.description} price={item.price} />
+                <Card imageUrls={item.imageUrls} id={item.id} category={item.category} image={item.imageUrl} name={item.name} description={item.description} price={item.price} />
               </div>
           ))}
         </div>

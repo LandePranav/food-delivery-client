@@ -6,8 +6,9 @@ import { useContext, useState } from "react";
 import { context } from "@/context/contextProvider";
 import { motion } from "motion/react";
 import { UtensilsCrossed } from "lucide-react";
+import { CldImage } from "next-cloudinary";
 
-export default function Card({ id, category, image, name, description, price }) {
+export default function Card({ id, category, image, name, description, price, imageUrls }) {
   const {cartItems, setCartItems} = useContext(context);
   const [isVibrating, setIsVibrating] = useState(false);
 
@@ -30,10 +31,10 @@ export default function Card({ id, category, image, name, description, price }) 
 
     return (
       <article className="w-full overflow-clip h-full flex flex-col p-6 relative rounded-xl shadow-lg border border-white border-opacity-10 backdrop-blur-3xl bg-gray-300 bg-opacity-5">
-        <div className="h-1/2 w-full relative mb-4">
+        <div className="h-1/2 w-full relative mb-4 rounded-md overflow-hidden">
             {
-              image ? (
-                <Image src={image} alt="produtImg" fill className="object-contain" />
+              imageUrls ? (
+                <CldImage src={imageUrls[0]} alt="produtImg" fill />
               ) : (
                 <div className="flex items-center justify-center h-full">
                   <UtensilsCrossed className="w-14 h-14" />
