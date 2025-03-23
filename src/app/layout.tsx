@@ -1,7 +1,8 @@
 import type { Metadata } from "next";
-import {geistMono, geistSans, jet} from './fonts';
+// import {geistMono, geistSans, jet} from './fonts';
+import {jet} from './fonts';
 import "./globals.css";
-import { ThemeProvider } from "@/components/theme-provider";
+// import { ThemeProvider } from "@/components/theme-provider";
 import Navbar from "@/components/navbar";
 import ContextProvider from "@/context/contextProvider";
 
