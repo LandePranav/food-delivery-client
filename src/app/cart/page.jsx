@@ -51,12 +51,12 @@ export default function Cart() {
     }
 
     return(
-        <div className="flex flex-col md:flex-row items-center justify-evenly gap-12 w-full min-h-[calc(100vh-250px)]">
-            <div className="flex flex-col flex-1 items-center justify-center w-1/2 h-full">
+        <div className="flex flex-col md:flex-row items-center justify-evenly gap-4 md:gap-12 w-full min-h-[calc(100vh-250px)]">
+            <div className="flex flex-col flex-1 items-center justify-center w-full md:w-1/2 h-full">
                 <CartProductTable cartItems={filteredItems} handleRemoveItem={handleRemoveItem} handleAddItem={handleAddItem} className="w-full h-full" />
             </div>
-            <div className="flex w-1/2 h-full">
-                <div className="flex flex-col items-center justify-center w-full h-full p-8 ">
+            <div className="flex w-full md:w-1/2 h-full">
+                <div className="flex flex-col items-center justify-center w-full h-full md:p-8 ">
                     <Card className="bg-transparent text-white w-full h-full">
                         <CardHeader className="text-center">
                             <CardTitle>Checkout</CardTitle>

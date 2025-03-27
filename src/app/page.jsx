@@ -15,7 +15,7 @@ export default function Home() {
     useEffect(() => {
     const fetchProducts = async () => {
       const response = await api.get("/products");
-      console.log(response.data);
+      // console.log(response.data);
       if (response.status === 200) {
         // console.log(response.data);
         setProducts(response.data);

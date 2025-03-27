@@ -43,7 +43,7 @@ export default function Card({ id, category, image, name, description, price, im
             }
         </div>
         <div className="h-1/2 flex flex-col justify-between w-full">
-          <h3 className="w-full text-nowrap overflow-ellipsis">
+          <h3 className="w-full text-nowrap overflow-ellipsis line-clamp-1">
             {name}
           </h3>
           <p className="line-clamp-2 text-[#999999] break-words">

@@ -22,8 +22,8 @@ export default function Page() {
     },[searchText]);
 
     // useEffect(()=>{
-    //     setFiltered(foodProducts);
-    // },[]);
+    //     console.log(allProducts);
+    // },[allProducts]);
 
     useEffect(()=>{
         const products = async()=>{
@@ -46,10 +46,10 @@ export default function Page() {
                 />
             </div>
             <div className="w-full h-full py-6">
-                <div className="w-full h-full grid grid-cols-1 sm:grid-cols-2 lg:grid-col-3 gap-6 py-3">
+                <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 py-3">
                     {filtered.map((item)=>(
                         <div key={item.id} className="h-[325px]">
-                            <Card id={item.id} category={item.category} image={item.image} name={item.name} description={item.description} price={item.price} />
+                            <Card id={item.id} category={item.category} imageUrls={item.imageUrls} name={item.name} description={item.description} price={item.price} />
                         </div>
                     ))}
                 </div>
