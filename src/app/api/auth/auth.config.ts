@@ -22,12 +22,19 @@ export const authOptions: AuthOptions = {
     GoogleProvider({
       clientId: process.env.GOOGLE_CLIENT_ID ?? "",
       clientSecret: process.env.GOOGLE_CLIENT_SECRET ?? "",
+      authorization: {
+        params: {
+          prompt: "consent",
+          access_type: "offline",
+          response_type: "code",
+        },
+      },
     }),
   ],
   session: { strategy: "jwt" as const },
   callbacks: {
     async session({ session, token }) {
-      if (token?.sub && session?.user) {
+      if (token?.sub) {
         session.user.id = token.sub;
         session.user.email = token.email || "";
         session.user.name = token.name || "";
@@ -35,17 +42,18 @@ export const authOptions: AuthOptions = {
       }
       return session;
     },
+    
     async signIn({ user }) {
       if (!user.email) {
         return false; // Prevent sign-in if email is not available
       }
-      const existingSeller = await prisma.seller.findUnique({
-        where: { email: user.email },
-      });
+      // const existingUser = await prisma.user.findUnique({
+      //   where: { email: user.email ?? "" },
+      // });
 
-      if (existingSeller) {
-        return false; // Prevent OAuth login for sellers
-      }
+      // if (existingUser) {
+      //   return false; // Prevent OAuth login for sellers
+      // }
 
       return true;
     },
