@@ -8,7 +8,7 @@ import {
     TableHeader,
     TableRow,
   } from "@/components/ui/table"
-import { useEffect, useState } from "react";
+import { useEffect} from "react";
 import { Button } from "@/components/ui/button";
 import { MinusIcon, PlusIcon } from "lucide-react";
   
@@ -57,12 +57,13 @@ import { MinusIcon, PlusIcon } from "lucide-react";
 //     },
 //   ]
   
-  export function CartProductTable({cartItems, handleRemoveItem, handleAddItem}) {
-    const [totalAmount, setTotalAmount] = useState(0);
+  export function CartProductTable({cartItems, handleRemoveItem, handleAddItem, totalAmount, setTotalAmount}) {
     useEffect(() => {
         const total = cartItems.reduce((acc, item) => acc + item.price * item.quantity, 0);
-        setTotalAmount(total);
-    }, [cartItems]);
+        if (total !== totalAmount) {
+            setTotalAmount(total);
+        }
+    }, [cartItems, totalAmount, setTotalAmount]);
 
     return (
       <Table>

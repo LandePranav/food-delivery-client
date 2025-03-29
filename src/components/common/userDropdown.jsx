@@ -13,8 +13,8 @@ export default function UserDropdown() {
             <DropdownMenuTrigger>
                 <div className="w-full flex gap-2 justify-center items-center">
                     <Avatar>
-                        <AvatarImage className="rounded-full md:w-10 md:h-10 w-8 h-8 mx-auto" src={session.user.image} />
-                        <AvatarFallback>
+                        <AvatarImage className="rounded-full md:w-10 md:h-10 w-8 h-8 mx-auto" src={session?.user?.image} />
+                        <AvatarFallback className="bg-red-500">
                             {session.user.name.charAt(0)}
                         </AvatarFallback>
                     </Avatar>
@@ -26,7 +26,7 @@ export default function UserDropdown() {
             </DropdownMenuTrigger>
             <DropdownMenuContent className="bg-black text-white border-gray-700 font-semibold">
                 <DropdownMenuItem className="flex items-center justify-between">
-                    <Link href="#">
+                    <Link href="/profile">
                         Profile
                     </Link>
                     <ArrowRight className="w-4 h-4" />

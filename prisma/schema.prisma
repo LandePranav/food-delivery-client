@@ -93,9 +93,12 @@ model Order {
   id              String   @id @unique @default(uuid())
   userId          String
   sellerId        String
-  productList     String[]
+  productList     Json
   totalPrice      Int?
   deliveryAddress String
+  paymentStatus   String?
+  deliveryStatus  String?
+  paymentId       String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
   seller          Seller   @relation(fields: [sellerId], references: [id])

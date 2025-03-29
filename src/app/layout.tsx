@@ -1,5 +1,5 @@
 "use client"
-import type { Metadata } from "next";
+// import type { Metadata } from "next";
 // import {geistMono, geistSans, jet} from './fonts';
 import {jet} from './fonts';
 import "./globals.css";

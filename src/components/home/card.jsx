@@ -8,7 +8,7 @@ import { motion } from "motion/react";
 import { UtensilsCrossed } from "lucide-react";
 import { CldImage } from "next-cloudinary";
 
-export default function Card({ id, category, image, name, description, price, imageUrls }) {
+export default function Card({ id, category, image, name, description, price, imageUrls, sellerId }) {
   const {cartItems, setCartItems} = useContext(context);
   const [isVibrating, setIsVibrating] = useState(false);
 
@@ -24,7 +24,8 @@ export default function Card({ id, category, image, name, description, price, im
       image,
       name,
       description,
-      price
+      price,
+      sellerId
     }]);
     triggerVibration();
   }
