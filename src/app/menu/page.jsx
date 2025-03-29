@@ -46,9 +46,9 @@ export default function Page() {
                 />
             </div>
             <div className="w-full h-full py-6">
-                <div className="w-full grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6 py-3">
+                <div className="w-full grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6 py-3">
                     {filtered.map((item)=>(
-                        <div key={item.id} className="h-[325px]">
+                        <div key={item.id} className="md:h-[325px] h-[200px]">
                             <Card sellerId={item.sellerId} id={item.id} category={item.category} imageUrls={item.imageUrls} name={item.name} description={item.description} price={item.price} />
                         </div>
                     ))}

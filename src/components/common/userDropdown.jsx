@@ -11,9 +11,9 @@ export default function UserDropdown() {
     return (
         <DropdownMenu>
             <DropdownMenuTrigger>
-                <div className="w-full flex gap-2 justify-center items-center">
+                <div className="w-full h-full flex gap-2 justify-center items-center">
                     <Avatar>
-                        <AvatarImage className="rounded-full md:w-10 md:h-10 w-8 h-8 mx-auto" src={session?.user?.image} />
+                        <AvatarImage className="rounded-full md:w-10 md:h-10 w-8 h-8 my-auto mx-auto" src={session?.user?.image} />
                         <AvatarFallback className="bg-red-500">
                             {session.user.name.charAt(0)}
                         </AvatarFallback>

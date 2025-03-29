@@ -103,10 +103,10 @@ export default function Navbar() {
         </nav>
 
         {/* MoBile Nav */}
-        <nav className={"w-full px-2 bg-black rounded-lg sticky md:hidden items-center justify-evenly py-2 md:pb-10 transition-all duration-300 " + (isMobileNavOpen ? "flex flex-col" : "hidden")}>
-            <Link className="w-full text-center hover:bg-gray-900 rounded-lg py-1" href="/">Home</Link>
-            <Link className="w-full text-center hover:bg-gray-900 rounded-lg py-1" href="/menu">Menu</Link>
-            <Link className="w-full text-center hover:bg-gray-900 rounded-lg py-1" href="/about">About</Link>
+        <nav className={"w-full px-2 bg-black rounded-lg sticky md:hidden items-center justify-evenly py-2 mb-4 md:pb-10 transition-all duration-300 " + (isMobileNavOpen ? "flex flex-col" : "hidden")}>
+            <Link className="w-full text-center hover:bg-gray-900 rounded-lg py-1" onClick={()=>setIsMobileNavOpen(false)} href="/">Home</Link>
+            <Link className="w-full text-center hover:bg-gray-900 rounded-lg py-1" onClick={()=>setIsMobileNavOpen(false)} href="/menu">Menu</Link>
+            <Link className="w-full text-center hover:bg-gray-900 rounded-lg py-1" onClick={()=>setIsMobileNavOpen(false)} href="/about">About</Link>
             <div className="w-full">
                 {
                     !session && (
