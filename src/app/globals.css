@@ -46,6 +46,16 @@ h2 {
     scrollbar-color: gray transparent;
     scrollbar-arrow-color: transparent;
   }
+
+  /* Hide scrollbars but allow scrolling */
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
 }
 
 @layer base {
@@ -110,5 +120,30 @@ h2 {
   }
   body {
     @apply bg-background text-foreground;
+  }
+}
+
+/* Mobile-friendly focus styles */
+@layer base {
+  :focus-visible {
+    @apply outline-none ring-2 ring-offset-2 ring-red-500 ring-offset-background;
+  }
+}
+
+/* Animation utilities */
+@layer utilities {
+  .animate-slide-up {
+    animation: slideUp 0.3s ease-out forwards;
+  }
+  
+  @keyframes slideUp {
+    from {
+      transform: translateY(100%);
+      opacity: 0;
+    }
+    to {
+      transform: translateY(0);
+      opacity: 1;
+    }
   }
 }

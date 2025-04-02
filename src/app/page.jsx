@@ -1,47 +1,68 @@
-// import { jet, satisfy } from "./fonts";
 "use client"
-import Featured from "@/components/home/featured";
-import Card from "@/components/home/card";
-// import foodProducts from "@/lib/constants";
-import { FaFireFlameCurved } from "react-icons/fa6";
-import { useState, useEffect } from "react";
-import api from "@/lib/axios";
 
+import { PageLayout } from "@/components/layout/page-layout"
+import SpecialDishesCarousel from "@/components/home/special-dishes-carousel"
+import { Categories } from "@/components/home/categories"
+import PopularFoods from "@/components/home/popular-foods"
+import NearbyRestaurants from "@/components/home/nearby-restaurants"
+import { useEffect, useState } from "react"
+import api from "@/lib/axios"
 
 export default function Home() {
+  const [products, setProducts] = useState([])
+  const [isLoading, setIsLoading] = useState(true)
+  const [categories, setCategories] = useState([
+    { name: "Burger", emoji: "🍔" },
+    { name: "Pizza", emoji: "🍕" },
+    { name: "Fries", emoji: "🍟" },
+    { name: "Drinks", emoji: "🥤" },
+    { name: "Salad", emoji: "🥗" },
+    { name: "Sushi", emoji: "🍣" },
+    { name: "Dessert", emoji: "🍰" },
+    { name: "Chicken", emoji: "🍗" },
+  ])
 
-  const [products, setProducts] = useState([]);
-
-    useEffect(() => {
+  useEffect(() => {
     const fetchProducts = async () => {
-      const response = await api.get("/products");
-      // console.log(response.data);
-      if (response.status === 200) {
-        // console.log(response.data);
-        setProducts(response.data);
-      } else {
-        console.log("Error fetching products");
+      try {
+        console.log("Fetching products for home page") // Debug
+        setIsLoading(true)
+        const response = await api.get("/products")
+        if (response.status === 200) {
+          console.log("Products fetched successfully:", response.data.length) // Debug
+          setProducts(response.data)
+        } else {
+          console.log("Error fetching products")
+        }
+      } catch (error) {
+        console.error("Error fetching products:", error)
+      } finally {
+        setIsLoading(false)
       }
-    };
-    fetchProducts();
-  }, []);
-  
+    }
+    fetchProducts()
+  }, [])
+
+  // Debug render counts
+  useEffect(() => {
+    console.log("Products length:", products.length)
+  }, [products])
+
   return (
-    <div className={"w-full h-full"}>
-      <Featured />
-      <section className="w-full py-4">
-        <p className="flex gap-2 items-center mb-5 border-l-4 border-white px-3">
-          Trending
-          <FaFireFlameCurved className="w-5 h-5 fill-red-500" />
-        </p>
-        <div className="w-full h-[200px] md:h-[325px] flex gap-5 my-2 overflow-x-auto">
-          {products.map((item)=>(
-              <div key={item.id} className="md:w-[230px] h-full w-[160px]">
-                <Card sellerId={item.sellerId} imageUrls={item.imageUrls} id={item.id} category={item.category} image={item.imageUrl} name={item.name} description={item.description} price={item.price} />
-              </div>
-          ))}
-        </div>
-      </section>
-    </div>
-  );
+    <PageLayout>
+      <div className="px-2 pb-12">
+        {/* Categories */}
+        <Categories categories={categories} />
+
+        {/* Special Dish Carousel */}
+        <SpecialDishesCarousel />
+
+        {/* Popular Foods */}
+        <PopularFoods items={products} limit={4} />
+
+        {/* Nearby Restaurants */}
+        <NearbyRestaurants />
+      </div>
+    </PageLayout>
+  )
 }

@@ -11,140 +11,129 @@ import Script from "next/script";
 import { useSession } from "next-auth/react";
 import CustomAlert from "@/components/common/customAlert";
 import { useRouter } from "next/navigation";
+import { PageLayout } from "@/components/layout/page-layout";
+import { LockIcon } from "lucide-react";
+import Link from "next/link";
+import { ShoppingCart, Trash, Lock, Plus, Minus } from "lucide-react";
+import Image from "next/image";
+import api from "@/lib/axios";
 
 export default function Cart() {
-    const {cartItems, setCartItems} = useContext(context);
+    const {cartItems, setCartItems, addToCart, removeFromCart, removeItemCompletely, calculateCartTotal} = useContext(context);
     const [totalAmount, setTotalAmount] = useState(0);
     const [isPaymentProcessing, setIsPaymentProcessing] = useState(false);
-    const {data: session} = useSession();
+    const {data: session, status} = useSession();
     const [showAlert, setShowAlert] = useState(false);
     const router = useRouter();
-    const [filteredItems, setFilteredItems] = useState([]);
     const [formData, setFormData] = useState({
         name: "",
         email: "",
         phone: "",
         address: "",
+        payment: "cash",
     });
+
+    // Calculate total quantity of items in cart
+    const totalCartItems = cartItems.reduce((total, item) => total + (item.quantity || 1), 0);
+
+    // Prefill form data if user is logged in
+    useEffect(() => {
+        if (session?.user) {
+            setFormData(prev => ({
+                ...prev,
+                name: session.user.name || prev.name,
+                email: session.user.email || prev.email,
+            }));
+        }
+    }, [session]);
+
+    useEffect(() => {
+        setTotalAmount(calculateCartTotal());
+    }, [cartItems, calculateCartTotal]);
 
     const handleSubmit = async (e) => {
         e.preventDefault();
+        
+        // If user is not authenticated, redirect to login and save cart state
+        if (!session?.user) {
+            localStorage.setItem('pendingCart', 'true');
+            router.push('/api/auth/signin');
+            return;
+        }
+        
         setIsPaymentProcessing(true);
         
         try {
-            const response = await fetch("/api/create-order", {
-                method: "POST",
-                body: JSON.stringify({
-                    ...formData,
-                    totalAmount,
-                    items: filteredItems,
-                    userId: session?.user?.id,
-                }),
-            });
-            const data = await response.json();
-
-            // Initialize Razorpay
-            const options = {
-                key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-                amount: totalAmount * 100,
-                currency: "INR",
-                name: "Food Delivery",
-                description: "Payment for items in cart",
-                order_id: data.id,
-                handler: async (response) => {
-                    console.log("Payment successful", response);
-                    if (response.razorpay_payment_id) {
-                        setFormData({
-                            name: "",
-                            email: "",
-                            phone: "",
-                            address: "",
-                        });
-
-                        setShowAlert(true);
-                        
-                        setTimeout(() => {
-                            setShowAlert(false);
-                            router.push("/profile");
-                        }, 2000);
-                    }
-
-                    // Clear cart after successful payment
-                    setCartItems([]);
-                },
-                prefill: {
-                    name: formData.name,
-                    email: formData.email,
-                    contact: formData.phone,
-                },
-                notes: {
-                    address: formData.address
-                },
-                theme: {
-                    color: "#000000",
-                }
-            }
+            // Create an order with user details and cart items
+            const orderData = {
+                userId: session.user.id,
+                items: cartItems,
+                totalAmount: totalAmount,
+                customerDetails: formData,
+                status: "pending"
+            };
             
-            // Check if Razorpay is loaded and available
-            if (typeof window !== 'undefined' && !window.Razorpay) {
-                throw new Error("Razorpay SDK failed to load");
-            }
+            // Submit order to API
+            const response = await api.post('/orders', orderData);
             
-            // Create Razorpay instance
-            const razorpay = new window.Razorpay(options);
-            razorpay.on('payment.failed', function (response){
-                console.error("Payment failed", response.error);
-                alert("Payment failed. Please try again.");
-            });
-            razorpay.open();
+            if (response.status === 201 || response.status === 200) {
+                // Clear cart after successful order
+                setCartItems([]);
+                alert("Order placed successfully!");
+                router.push("/orders");
+            }
         } catch (error) {
-            console.error("Error creating order", error);
-            alert("Something went wrong. Please try again.");
+            console.error("Error submitting order:", error);
+            alert("There was an error placing your order. Please try again.");
         } finally {
             setIsPaymentProcessing(false);
         }
     }
 
-    useEffect(() => {
-        const map = new Map();
-        console.log(cartItems);
-        cartItems.forEach((item) => {
-            if (map.has(item.id)) {
-                map.set(item.id,{...item, quantity: map.get(item.id).quantity + 1});
-            } else {
-                map.set(item.id, {...item, quantity: 1});
-            }
-        })
-        setFilteredItems(Array.from(map.values()));
-    }, [cartItems]);
-
-
     const handleRemoveItem = (id) => {
-        const index = cartItems.findIndex((item) => item.id === id);
-        if (index !== -1) {
-            const newCartItems = [...cartItems];
-            newCartItems.splice(index, 1);
-            setCartItems(newCartItems);
-        }
+        removeFromCart(id);
     }
 
     const handleAddItem = (id) => {
-        setCartItems((prev) => [...prev, cartItems.find((item) => item.id === id)]);
+        const item = cartItems.find(item => item.id === id);
+        if (item) {
+            addToCart(item);
+        }
     }
 
+    const handleDeleteItem = (id) => {
+        removeItemCompletely(id);
+    }
+
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData({ ...formData, [name]: value });
+    }
+
+    // Helper function to get the best available image URL
+    const getImageUrl = (item) => {
+        if (item.imageUrl) return item.imageUrl;
+        if (item.image) return item.image;
+        if (item.imageUrls && item.imageUrls.length > 0) return item.imageUrls[0];
+        return "/placeholder.jpg";
+    }
+
+    // Format price with rupee symbol
+    const formatPrice = (price) => {
+        return `₹${price.toFixed(2)}`;
+    };
+
     return(
-        <div className="flex flex-col md:flex-row items-center justify-evenly gap-4 md:gap-12 w-full min-h-[calc(100vh-250px)]">
-            {
-                showAlert && (
-                    <div className="w-full h-full">
-                        <CustomAlert
-                            title="Payment successful"
-                            message="Your order has been placed successfully, Redirecting to profile..."
-                            type="success"
-                        />
-                    </div>
-                )
-            }
+        <PageLayout>
+            {showAlert && (
+                <div className="w-full h-full">
+                    <CustomAlert
+                        title="Payment successful"
+                        message="Your order has been placed successfully, Redirecting to profile..."
+                        type="success"
+                    />
+                </div>
+            )}
             <Script 
                 src="https://checkout.razorpay.com/v1/checkout.js" 
                 strategy="afterInteractive"
@@ -155,68 +144,176 @@ export default function Cart() {
                     console.error("Failed to load Razorpay script");
                 }}
             />
-            <div className="flex flex-col flex-1 items-center justify-center w-full md:w-1/2 h-full">
-                <CartProductTable totalAmount={totalAmount} setTotalAmount={setTotalAmount} cartItems={filteredItems} handleRemoveItem={handleRemoveItem} handleAddItem={handleAddItem} className="w-full h-full" />
-            </div>
-            <div className="flex w-full md:w-1/2 h-full">
-                <div className="flex flex-col items-center justify-center w-full h-full md:p-8 ">
-                    <Card className="bg-transparent text-white w-full h-full">
-                        <CardHeader className="text-center">
-                            <CardTitle>Checkout</CardTitle>
-                        </CardHeader>
-                        <form onSubmit={handleSubmit}>
-                            <CardContent>
-                                <div className="flex flex-col gap-4">
-                                    <div className="flex flex-col gap-2">
-                                        {/* <Label>Name</Label> */}
-                                        <Input 
-                                            type="text" 
-                                            placeholder="Name" 
-                                            value={formData.name}
-                                            onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                                            required
-                                        />
-                                    </div>
-                                    <div className="flex flex-col gap-2">
-                                        {/* <Label>Email</Label> */}
-                                        <Input 
-                                            type="email" 
-                                            placeholder="Email" 
-                                            value={formData.email}
-                                            onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                                            required
-                                        />
-                                    </div>
-                                    <div className="flex flex-col gap-2">
-                                        {/* <Label>Email</Label> */}
-                                        <Input 
-                                            type="text" 
-                                            placeholder="Phone Number" 
-                                            value={formData.phone}
-                                            onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
-                                            required
-                                        />
-                                    </div>
-                                    <div className="flex flex-col gap-2">
-                                        {/* <Label>Address</Label> */}
-                                        <Input 
-                                            type="address" 
-                                            placeholder="Address" 
-                                            value={formData.address}
-                                            onChange={(e) => setFormData({ ...formData, address: e.target.value })}
-                                            required
-                                        />
-                                    </div>
-
-                                    <Button className="bg-white text-black hover:bg-red-500 hover:text-white hover:shadow-sm hover:shadow-gray-100" disabled={isPaymentProcessing || filteredItems.length === 0} type="submit">
-                                        {isPaymentProcessing ? "Processing..." : "Checkout"}
-                                    </Button>
-                                </div>
-                            </CardContent>
-                        </form>
-                    </Card>
+            
+            {cartItems.length === 0 ? (
+                <div className="flex flex-col items-center justify-center py-16 px-4">
+                    <div className="w-24 h-24 rounded-full bg-gray-100 dark:bg-[#333333] flex items-center justify-center mb-6">
+                        <ShoppingCart className="h-10 w-10 text-gray-400" />
+                    </div>
+                    <h2 className="text-xl font-semibold mb-2 text-gray-900 dark:text-white">Your cart is empty</h2>
+                    <p className="text-gray-500 dark:text-gray-400 mb-6 text-center">Looks like you haven't added any items to your cart yet.</p>
+                    <Link href="/menu" className="bg-red-500 hover:bg-red-600 text-white px-6 py-2 rounded-full">
+                        Browse Menu
+                    </Link>
                 </div>
-            </div>
-        </div>
-    )
+            ) : (
+                <div className="flex flex-col lg:flex-row gap-6">
+                    {/* Cart Items */}
+                    <div className="lg:w-2/3">
+                        <div className="bg-white dark:bg-[#1E1E1E] rounded-lg shadow overflow-hidden">
+                            <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                                <h2 className="font-semibold text-gray-900 dark:text-white">Items ({totalCartItems})</h2>
+                            </div>
+                            
+                            <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                                {cartItems.map((item, index) => (
+                                    <div key={`${item.id}-${index}`} className="flex items-center p-4">
+                                        <div className="relative h-16 w-16 flex-shrink-0">
+                                            <Image
+                                                src={getImageUrl(item)}
+                                                alt={item.name}
+                                                fill
+                                                className="object-cover rounded-md"
+                                            />
+                                        </div>
+                                        
+                                        <div className="ml-4 flex-1">
+                                            <h3 className="font-medium text-gray-900 dark:text-white">{item.name}</h3>
+                                            <p className="text-gray-500 dark:text-gray-400 text-sm">
+                                                {formatPrice(item.price)} × {item.quantity || 1} = {formatPrice(item.price * (item.quantity || 1))}
+                                            </p>
+                                        </div>
+                                        
+                                        <div className="flex items-center gap-2">
+                                            <button
+                                                onClick={() => handleRemoveItem(item.id)}
+                                                className="p-1 rounded-full border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800"
+                                            >
+                                                <Minus className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+                                            </button>
+                                            
+                                            <span className="text-sm font-medium w-6 text-center">{item.quantity || 1}</span>
+                                            
+                                            <button
+                                                onClick={() => handleAddItem(item.id)}
+                                                className="p-1 rounded-full border border-gray-300 dark:border-gray-600 hover:bg-gray-100 dark:hover:bg-gray-800"
+                                            >
+                                                <Plus className="h-4 w-4 text-gray-600 dark:text-gray-400" />
+                                            </button>
+                                            
+                                            <button
+                                                onClick={() => handleDeleteItem(item.id)}
+                                                className="ml-2 text-red-500 hover:text-red-700 dark:hover:text-red-400"
+                                            >
+                                                <Trash className="h-5 w-5" />
+                                            </button>
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                            
+                            <div className="p-4 bg-gray-50 dark:bg-[#292929] flex justify-between items-center">
+                                <span className="font-medium text-gray-900 dark:text-white">Total</span>
+                                <span className="font-bold text-gray-900 dark:text-white">{formatPrice(totalAmount)}</span>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {/* Checkout Form */}
+                    <div className="lg:w-1/3">
+                        <div className="bg-white dark:bg-[#1E1E1E] rounded-lg shadow p-4">
+                            <h2 className="font-semibold text-gray-900 dark:text-white mb-4">Checkout</h2>
+                            
+                            {!session?.user && (
+                                <div className="mb-4 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md flex items-center">
+                                    <Lock className="h-5 w-5 text-yellow-500 mr-2" />
+                                    <p className="text-sm text-yellow-700 dark:text-yellow-300">Sign in required for checkout</p>
+                                </div>
+                            )}
+                            
+                            <form onSubmit={handleSubmit}>
+                                <div className="mb-4">
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                        Full Name
+                                    </label>
+                                    <input
+                                        type="text"
+                                        name="name"
+                                        value={formData.name}
+                                        onChange={handleChange}
+                                        required
+                                        className="w-full p-2 border border-gray-300 dark:border-gray-700 dark:bg-[#292929] rounded-md focus:ring-red-500 focus:border-red-500 dark:text-white"
+                                    />
+                                </div>
+                                
+                                <div className="mb-4">
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                        Email
+                                    </label>
+                                    <input
+                                        type="email"
+                                        name="email"
+                                        value={formData.email}
+                                        onChange={handleChange}
+                                        required
+                                        className="w-full p-2 border border-gray-300 dark:border-gray-700 dark:bg-[#292929] rounded-md focus:ring-red-500 focus:border-red-500 dark:text-white"
+                                    />
+                                </div>
+                                
+                                <div className="mb-4">
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                        Delivery Address
+                                    </label>
+                                    <textarea
+                                        name="address"
+                                        value={formData.address}
+                                        onChange={handleChange}
+                                        required
+                                        rows="2"
+                                        className="w-full p-2 border border-gray-300 dark:border-gray-700 dark:bg-[#292929] rounded-md focus:ring-red-500 focus:border-red-500 dark:text-white"
+                                    ></textarea>
+                                </div>
+                                
+                                <div className="mb-4">
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                        Phone Number
+                                    </label>
+                                    <input
+                                        type="tel"
+                                        name="phone"
+                                        value={formData.phone}
+                                        onChange={handleChange}
+                                        required
+                                        className="w-full p-2 border border-gray-300 dark:border-gray-700 dark:bg-[#292929] rounded-md focus:ring-red-500 focus:border-red-500 dark:text-white"
+                                    />
+                                </div>
+                                
+                                <div className="mb-6">
+                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                        Payment Method
+                                    </label>
+                                    <select
+                                        name="payment"
+                                        value={formData.payment}
+                                        onChange={handleChange}
+                                        className="w-full p-2 border border-gray-300 dark:border-gray-700 dark:bg-[#292929] rounded-md focus:ring-red-500 focus:border-red-500 dark:text-white"
+                                    >
+                                        <option value="cash">Cash on Delivery</option>
+                                        <option value="card">Credit Card</option>
+                                    </select>
+                                </div>
+                                
+                                <button
+                                    type="submit"
+                                    className="w-full bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-md transition-colors"
+                                >
+                                    {!session?.user ? "Sign in to Checkout" : `Checkout $${totalAmount.toFixed(2)}`}
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            )}
+        </PageLayout>
+    );
 }

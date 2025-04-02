@@ -65,6 +65,11 @@ import { MinusIcon, PlusIcon } from "lucide-react";
         }
     }, [cartItems, totalAmount, setTotalAmount]);
 
+    // Function to format price with rupee symbol
+    const formatPrice = (price) => {
+        return `₹${price.toFixed(2)}`;
+    };
+
     return (
       <Table>
         <TableCaption>Items In Cart.</TableCaption>
@@ -80,7 +85,7 @@ import { MinusIcon, PlusIcon } from "lucide-react";
           {cartItems.map((item) => (
             <TableRow key={item.id}>
               <TableCell className="font-medium text-nowrap overflow-ellipsis">{item.name}</TableCell>
-              <TableCell className="text-center">{item.price}</TableCell>
+              <TableCell className="text-center">{formatPrice(item.price)}</TableCell>
               <TableCell className="text-center">
                 <div className="flex items-center justify-center gap-3">
                     <Button size="icon" className="rounded-full bg-black text-white border border-white hover:border-red-400 hover:text-red-400 p-1" onClick={() => handleRemoveItem(item.id)}>
@@ -92,14 +97,14 @@ import { MinusIcon, PlusIcon } from "lucide-react";
                     </Button>
                 </div>
               </TableCell>
-              <TableCell className="text-right">{item.price * item.quantity}</TableCell>
+              <TableCell className="text-right">{formatPrice(item.price * item.quantity)}</TableCell>
             </TableRow>
           ))}
         </TableBody>
         <TableFooter>
           <TableRow>
             <TableCell colSpan={3}>Total</TableCell>
-            <TableCell className="text-right">{totalAmount}</TableCell>
+            <TableCell className="text-right">{formatPrice(totalAmount)}</TableCell>
           </TableRow>
         </TableFooter>
       </Table>

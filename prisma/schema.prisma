@@ -19,6 +19,10 @@ model Seller {
   updatedAt         DateTime  @updatedAt
   isVerified        Boolean   @default(false)
   verificationToken String?
+  active            Boolean   @default(false)
+  gpsLocation       Json?
+  restaurantName    String?   @unique
+  speciality        String?
   orders            Order[]
   products          Product[]
 
@@ -27,16 +31,16 @@ model Seller {
 
 model User {
   id            String    @id @unique @default(uuid())
-  name          String?
   username      String?   @unique
   email         String?   @unique
-  emailVerified DateTime?
-  image         String?
   phone         String?   @unique
   password      String?
-  address       String?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
+  emailVerified DateTime?
+  image         String?
+  name          String?
+  addresses     String[]
   accounts      Account[]
   orders        Order[]
   sessions      Session[]
@@ -45,19 +49,19 @@ model User {
 }
 
 model Account {
-  id                 String  @id @default(uuid())
-  userId             String
-  type               String
-  provider           String
-  providerAccountId  String
-  refresh_token      String?
-  access_token       String?
-  expires_at         Int?
-  token_type         String?
-  scope              String?
-  id_token           String?
-  session_state      String?
-  user               User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id                String  @id @default(uuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+  user              User    @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@unique([provider, providerAccountId])
   @@map("accounts")
@@ -78,12 +82,12 @@ model Product {
   sellerId    String
   name        String
   price       Int
-  category    String
   description String
-  imageUrls   String[]
   visible     Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+  imageUrls   String[]
+  categories  String[]
   seller      Seller   @relation(fields: [sellerId], references: [id])
 
   @@map("products")
@@ -93,14 +97,15 @@ model Order {
   id              String   @id @unique @default(uuid())
   userId          String
   sellerId        String
-  productList     Json
   totalPrice      Int?
   deliveryAddress String
-  paymentStatus   String?
-  deliveryStatus  String?
-  paymentId       String?
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
+  deliveryStatus  String?
+  paymentId       String?
+  paymentStatus   String?
+  productList     Json
+  gpsLocation     Json?
   seller          Seller   @relation(fields: [sellerId], references: [id])
   user            User     @relation(fields: [userId], references: [id])
 
