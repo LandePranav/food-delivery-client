@@ -19,6 +19,7 @@ export async function GET(request) {
         try {
             decodedToken = jwt.verify(token, process.env.JWT_SECRET);
         } catch (err) {
+            console.log(err)
             return NextResponse.json({ error: "Unauthorized - Invalid token" }, { status: 401 });
         }
         
@@ -104,6 +105,7 @@ export async function PATCH(request) {
         try {
             decodedToken = jwt.verify(token, process.env.JWT_SECRET);
         } catch (err) {
+            console.log(err)
             return NextResponse.json({ error: "Unauthorized - Invalid token" }, { status: 401 });
         }
         

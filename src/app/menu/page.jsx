@@ -1,5 +1,5 @@
 "use client"
-import { useContext, useEffect, useState } from "react"
+import { useContext, useEffect, useState, Suspense } from "react"
 import { useSearchParams } from "next/navigation"
 import { IoSearch, IoFilter } from "react-icons/io5"
 import { PageLayout } from "@/components/layout/page-layout"
@@ -7,7 +7,8 @@ import Card from "@/components/home/card"
 import api from "@/lib/axios"
 import { Loader2 } from "lucide-react"
 
-export default function Menu() {
+// Create a separate component for the menu content
+function MenuContent() {
   const searchParams = useSearchParams()
   const searchQuery = searchParams.get("search")
   const categoryFilter = searchParams.get("category")
@@ -87,66 +88,79 @@ export default function Menu() {
   }, [searchQuery, categoryFilter])
 
   return (
-    <PageLayout>
-      <div className="w-full pb-4">
-        {/* Search Bar */}
-        <div className="w-full flex gap-2 mb-4 px-3 py-2 bg-white dark:bg-[#1E1E1E] rounded-xl shadow-sm border border-gray-100 dark:border-[#333333] items-center">
-          <IoSearch className="w-5 h-5 text-gray-500 dark:text-gray-400" />
-          <input 
-            value={searchText || ""}
-            onChange={(e) => setSearchText(e.target.value)}
-            placeholder="Search for food..."
-            className="w-full bg-transparent cursor-pointer focus:outline-none focus:ring-0 px-1 py-1 text-gray-900 dark:text-gray-100"
-          />
-        </div>
+    <div className="w-full pb-4">
+      {/* Search Bar */}
+      <div className="w-full flex gap-2 mb-4 px-3 py-2 bg-white dark:bg-[#1E1E1E] rounded-xl shadow-sm border border-gray-100 dark:border-[#333333] items-center">
+        <IoSearch className="w-5 h-5 text-gray-500 dark:text-gray-400" />
+        <input 
+          value={searchText || ""}
+          onChange={(e) => setSearchText(e.target.value)}
+          placeholder="Search for food..."
+          className="w-full bg-transparent cursor-pointer focus:outline-none focus:ring-0 px-1 py-1 text-gray-900 dark:text-gray-100"
+        />
+      </div>
 
-        {/* Categories */}
-        <div className="w-full overflow-x-auto py-2 flex gap-2 scrollbar-hide mb-4">
-          {categories.map((category, index) => (
-            <button
-              key={index}
-              onClick={() => setActiveCategory(index === 0 ? "" : category.name)}
-              className={`flex items-center gap-1 min-w-fit py-1 px-3 rounded-full ${
-                (index === 0 && !activeCategory) || 
-                (activeCategory.toLowerCase() === category.name.toLowerCase())
-                  ? "bg-red-500 text-white"
-                  : "bg-white dark:bg-[#1E1E1E] text-gray-700 dark:text-gray-300 border border-gray-100 dark:border-[#333333]"
-              }`}
-            >
-              <span>{category.emoji}</span>
-              <span>{category.name}</span>
-            </button>
+      {/* Categories */}
+      <div className="w-full overflow-x-auto py-2 flex gap-2 scrollbar-hide mb-4">
+        {categories.map((category, index) => (
+          <button
+            key={index}
+            onClick={() => setActiveCategory(index === 0 ? "" : category.name)}
+            className={`flex items-center gap-1 min-w-fit py-1 px-3 rounded-full ${
+              (index === 0 && !activeCategory) || 
+              (activeCategory.toLowerCase() === category.name.toLowerCase())
+                ? "bg-red-500 text-white"
+                : "bg-white dark:bg-[#1E1E1E] text-gray-700 dark:text-gray-300 border border-gray-100 dark:border-[#333333]"
+            }`}
+          >
+            <span>{category.emoji}</span>
+            <span>{category.name}</span>
+          </button>
+        ))}
+      </div>
+
+      {/* Loading State */}
+      {isLoading ? (
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-gray-500 dark:text-gray-400" />
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-12">
+          <p className="text-gray-500 dark:text-gray-400">No products found</p>
+        </div>
+      ) : (
+        <div className="w-full grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 py-3">
+          {filtered.map((item) => (
+            <div key={item.id} className="h-full">
+              <Card 
+                sellerId={item.sellerId} 
+                id={item.id} 
+                category={item.category} 
+                imageUrls={item.imageUrls} 
+                imageUrl={item.imageUrl}
+                name={item.name} 
+                description={item.description} 
+                price={item.price} 
+              />
+            </div>
           ))}
         </div>
+      )}
+    </div>
+  )
+}
 
-        {/* Loading State */}
-        {isLoading ? (
-          <div className="flex items-center justify-center py-12">
-            <Loader2 className="h-8 w-8 animate-spin text-gray-500 dark:text-gray-400" />
-          </div>
-        ) : filtered.length === 0 ? (
-          <div className="text-center py-12">
-            <p className="text-gray-500 dark:text-gray-400">No products found</p>
-          </div>
-        ) : (
-          <div className="w-full grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 py-3">
-            {filtered.map((item) => (
-              <div key={item.id} className="h-full">
-                <Card 
-                  sellerId={item.sellerId} 
-                  id={item.id} 
-                  category={item.category} 
-                  imageUrls={item.imageUrls} 
-                  imageUrl={item.imageUrl}
-                  name={item.name} 
-                  description={item.description} 
-                  price={item.price} 
-                />
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+// Main component that wraps MenuContent with Suspense
+export default function Menu() {
+  return (
+    <PageLayout>
+      <Suspense fallback={
+        <div className="flex items-center justify-center py-12">
+          <Loader2 className="h-8 w-8 animate-spin text-gray-500 dark:text-gray-400" />
+        </div>
+      }>
+        <MenuContent />
+      </Suspense>
     </PageLayout>
   )
 }

@@ -3,7 +3,8 @@
 import { useState, useEffect, useContext } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { Star, ShoppingCart, UtensilsCrossed } from "lucide-react"
+// import { Star, ShoppingCart, UtensilsCrossed } from "lucide-react"
+import { ShoppingCart, UtensilsCrossed } from "lucide-react"
 import api from "@/lib/axios"
 import { context } from "@/context/contextProvider"
 import { motion } from "framer-motion"
@@ -52,7 +53,6 @@ export default function PopularFoods({ items = [], limit = 4 }: PopularFoodsProp
         const response = await api.get("/sellers")
         if (response.status === 200 && Array.isArray(response.data)) {
           setSellers(response.data)
-          
           // Create a mapping of seller IDs to names
           const namesMap: Record<string, string> = {}
           response.data.forEach((seller: Seller) => {
@@ -68,6 +68,12 @@ export default function PopularFoods({ items = [], limit = 4 }: PopularFoodsProp
     
     fetchSellers()
   }, [])
+
+  useEffect(() => {
+    if(sellers.length > 0){
+      console.log("Sellers fetched successfully")
+    }
+  }, [sellers])
   
   useEffect(() => {
     if (items.length > 0) {

@@ -11,7 +11,7 @@ export function BottomNavigation() {
   const { cartItems } = useContext(context)
   
   // Calculate total quantity of items in cart
-  const totalCartItems = cartItems.reduce((total, item) => total + (item.quantity || 1), 0)
+  const totalCartItems = cartItems.reduce((total: number, item: Record<string, string | number | boolean | Record<string, string>>) => total + (item.quantity as number || 1), 0)
 
   const isActive = (path: string) => {
     return pathname === path

@@ -1,8 +1,8 @@
 "use client"
 
 import Image from "next/image"
-import { ChevronLeft, ChevronRight, ShoppingCart, Star } from "lucide-react"
-import { useRef, useState, useEffect, useContext } from "react"
+import { ChevronLeft, ChevronRight, ShoppingCart} from "lucide-react"
+import {useState, useEffect, useContext } from "react"
 import api from "@/lib/axios"
 import { context } from "@/context/contextProvider"
 import { Badge } from "@/components/ui/badge"
@@ -21,6 +21,7 @@ interface Dish {
   categoryId?: string
   rating?: number
 }
+
 
 export default function SpecialDishesCarousel() {
   const [specialDishes, setSpecialDishes] = useState<Dish[]>([])
@@ -55,9 +56,9 @@ export default function SpecialDishesCarousel() {
                 if (sellersResponse.status === 200) {
                   const sellersMap: Record<string, string> = {}
                   
-                  sellersResponse.data.forEach((seller: any) => {
-                    if (sellerIds.includes(seller.id)) {
-                      sellersMap[seller.id] = seller.restaurantName || seller.name || "Unknown Restaurant"
+                  sellersResponse.data.forEach((seller: Record<string, string | number | boolean | Record<string, string>>) => {
+                    if (sellerIds.includes(seller.id as string)) {
+                      sellersMap[seller.id as string] = (seller.restaurantName as string) || (seller.name as string) || "Unknown Restaurant"
                     }
                   })
                   
@@ -124,7 +125,7 @@ export default function SpecialDishesCarousel() {
       sellerId: dish.sellerId
     };
     
-    setCartItems((prev: any) => [...prev, item])
+    setCartItems((prev: Dish[]) => [...prev, item])
     setIsVibrating(true)
     setTimeout(() => setIsVibrating(false), 500)
   }

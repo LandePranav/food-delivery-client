@@ -18,7 +18,7 @@ export function Header() {
   const searchInputRef = useRef<HTMLInputElement>(null)
   
   // Calculate total quantity of items in cart
-  const totalCartItems = cartItems.reduce((total, item) => total + (item.quantity || 1), 0)
+  const totalCartItems = cartItems.reduce((total: number, item: Record<string, string | number | boolean | Record<string, string>>) => total + (item.quantity as number || 1), 0)
   
   // Focus the search input when the search bar is opened
   useEffect(() => {
