@@ -1,7 +1,6 @@
 "use client"
 import { CartProductTable } from "@/components/cart/cartProductTable";
 import { Card, CardHeader, CardTitle, CardContent} from "@/components/ui/card";
-// import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
@@ -14,7 +13,7 @@ import { useRouter } from "next/navigation";
 import { PageLayout } from "@/components/layout/page-layout";
 import { LockIcon } from "lucide-react";
 import Link from "next/link";
-import { ShoppingCart, Trash, Lock, Plus, Minus } from "lucide-react";
+import { ShoppingCart, Trash, Lock, Plus, Minus, AlertTriangle } from "lucide-react";
 import Image from "next/image";
 import api from "@/lib/axios";
 
@@ -24,17 +23,41 @@ export default function Cart() {
     const [isPaymentProcessing, setIsPaymentProcessing] = useState(false);
     const {data: session, status} = useSession();
     const [showAlert, setShowAlert] = useState(false);
+    const [alertMessage, setAlertMessage] = useState("");
+    const [alertType, setAlertType] = useState("success");
     const router = useRouter();
     const [formData, setFormData] = useState({
         name: "",
         email: "",
         phone: "",
         address: "",
-        payment: "cash",
     });
+    const [addresses, setAddresses] = useState([]);
+    const [showAddressForm, setShowAddressForm] = useState(false);
+    const [newAddress, setNewAddress] = useState("");
+    const [userLocation, setUserLocation] = useState({ latitude: 0, longitude: 0 });
 
     // Calculate total quantity of items in cart
     const totalCartItems = cartItems.reduce((total, item) => total + (item.quantity || 1), 0);
+
+    // Get user's current location
+    useEffect(() => {
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    setUserLocation({
+                        latitude: position.coords.latitude,
+                        longitude: position.coords.longitude
+                    });
+                },
+                (error) => {
+                    console.error("Error getting location:", error);
+                }
+            );
+        } else {
+            console.error("Geolocation is not supported by this browser.");
+        }
+    }, []);
 
     // Prefill form data if user is logged in
     useEffect(() => {
@@ -44,12 +67,66 @@ export default function Cart() {
                 name: session.user.name || prev.name,
                 email: session.user.email || prev.email,
             }));
+            
+            // Fetch user addresses
+            fetchUserInfo();
         }
     }, [session]);
 
     useEffect(() => {
         setTotalAmount(calculateCartTotal());
     }, [cartItems, calculateCartTotal]);
+    
+    // Fetch user addresses
+    const fetchUserInfo = async () => {
+        try {
+            const response = await api.get('/users');
+            const userInfo = response.data;
+            console.log(userInfo);
+            setAddresses(userInfo.addresses || []);
+            
+            // If there's at least one address, set it as the selected address
+            if (addresses && addresses.length > 0) {
+                setFormData(prev => ({
+                    ...prev,
+                    address: addresses[0]
+                }));
+            }
+        } catch (error) {
+            console.error("Error fetching addresses:", error);
+        }
+    };
+    
+    // Add a new address
+    const handleAddNewAddress = async () => {
+        if (!newAddress.trim()) return;
+        
+        try {
+            const response = await api.patch('/users', { address: newAddress });
+            const data = response.data;
+            if (data.success) {
+                setAddresses(prev => [...prev, newAddress]);
+                setFormData(prev => ({
+                    ...prev,
+                    address: newAddress
+                }));
+                setNewAddress("");
+                setShowAddressForm(false);
+            } else {
+                console.error("Error adding address:", data.error);
+            }
+        } catch (error) {
+            console.error("Error adding address:", error);
+        }
+    };
+
+    // Check if all products belong to the same seller/restaurant
+    const checkSameRestaurant = () => {
+        if (cartItems.length <= 1) return true;
+        
+        const firstSellerId = cartItems[0].sellerId;
+        return cartItems.every(item => item.sellerId === firstSellerId);
+    };
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -61,30 +138,124 @@ export default function Cart() {
             return;
         }
         
+        // Check if all products belong to the same restaurant
+        if (!checkSameRestaurant()) {
+            setAlertType("error");
+            setAlertMessage("You can only order items from the same restaurant in a single order. Please remove items from different restaurants.");
+            setShowAlert(true);
+            
+            // Hide alert after 5 seconds
+            setTimeout(() => {
+                setShowAlert(false);
+            }, 5000);
+            
+            return;
+        }
+        
+        // Validate that address is not empty
+        if (!formData.address || formData.address.trim() === '') {
+            setAlertType("error");
+            setAlertMessage("Please provide a delivery address");
+            setShowAlert(true);
+            
+            setTimeout(() => {
+                setShowAlert(false);
+            }, 5000);
+            
+            return;
+        }
+        
         setIsPaymentProcessing(true);
         
         try {
             // Create an order with user details and cart items
             const orderData = {
-                userId: session.user.id,
+                ...formData,
                 items: cartItems,
+                userId: session.user.id,
                 totalAmount: totalAmount,
-                customerDetails: formData,
-                status: "pending"
+                gpsLocation: userLocation
             };
             
             // Submit order to API
-            const response = await api.post('/orders', orderData);
+            const response = await api.post('/create-order', orderData);
+            console.log("Order Response : ", response);
+            const data = response.data;
+
+            // Initialize Razorpay
+            const options = {
+                key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
+                amount: totalAmount * 100,
+                currency: "INR",
+                name: "Food Delivery",
+                description: "Payment for items in cart",
+                order_id: data.id,
+                handler: async (response) => {
+                    console.log("Payment successful", response);
+                    if (response.razorpay_payment_id) {
+                        setFormData({
+                            name: "",
+                            email: "",
+                            phone: "",
+                            address: "",
+                        });
+
+                        setShowAlert(true);
+                        
+                        setTimeout(() => {
+                            setShowAlert(false);
+                            router.push("/profile");
+                        }, 2000);
+                    }
+
+                    // Clear cart after successful payment
+                    setCartItems([]);
+                },
+                prefill: {
+                    name: formData.name,
+                    email: formData.email,
+                    contact: formData.phone,
+                },
+                notes: {
+                    address: formData.address,
+                    gpsLocation: userLocation
+                },
+                theme: {
+                    color: "#000000",
+                }
+            }
+
+            // Check if Razorpay is loaded and available
+            if (typeof window !== 'undefined' && !window.Razorpay) {
+                throw new Error("Razorpay SDK failed to load");
+            }
             
-            if (response.status === 201 || response.status === 200) {
+            // Create Razorpay instance
+            const razorpay = new window.Razorpay(options);
+            razorpay.on('payment.failed', function (response){
+                console.error("Payment failed", response.error);
+                alert("Payment failed. Please try again.");
+            });
+            razorpay.open();
+            
+            if (data.success) {
                 // Clear cart after successful order
                 setCartItems([]);
-                alert("Order placed successfully!");
-                router.push("/orders");
+                setAlertType("success");
+                setAlertMessage("Order placed successfully!");
+                setShowAlert(true);
+                setTimeout(() => {
+                    router.push("/profile");
+                }, 2000);
             }
         } catch (error) {
             console.error("Error submitting order:", error);
-            alert("There was an error placing your order. Please try again.");
+            setAlertType("error");
+            setAlertMessage("There was an error placing your order. Please try again.");
+            setShowAlert(true);
+            setTimeout(() => {
+                setShowAlert(false);
+            }, 5000);
         } finally {
             setIsPaymentProcessing(false);
         }
@@ -128,9 +299,9 @@ export default function Cart() {
             {showAlert && (
                 <div className="w-full h-full">
                     <CustomAlert
-                        title="Payment successful"
-                        message="Your order has been placed successfully, Redirecting to profile..."
-                        type="success"
+                        title={alertType === "success" ? "Success" : "Error"}
+                        message={alertMessage}
+                        type={alertType}
                     />
                 </div>
             )}
@@ -231,6 +402,15 @@ export default function Cart() {
                                 </div>
                             )}
                             
+                            {!checkSameRestaurant() && (
+                                <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md flex items-center">
+                                    <AlertTriangle className="h-5 w-5 text-red-500 mr-2" />
+                                    <p className="text-sm text-red-700 dark:text-red-300">
+                                        Items from different restaurants detected. Please order from a single restaurant at a time.
+                                    </p>
+                                </div>
+                            )}
+                            
                             <form onSubmit={handleSubmit}>
                                 <div className="mb-4">
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -262,20 +442,6 @@ export default function Cart() {
                                 
                                 <div className="mb-4">
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                        Delivery Address
-                                    </label>
-                                    <textarea
-                                        name="address"
-                                        value={formData.address}
-                                        onChange={handleChange}
-                                        required
-                                        rows="2"
-                                        className="w-full p-2 border border-gray-300 dark:border-gray-700 dark:bg-[#292929] rounded-md focus:ring-red-500 focus:border-red-500 dark:text-white"
-                                    ></textarea>
-                                </div>
-                                
-                                <div className="mb-4">
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                                         Phone Number
                                     </label>
                                     <input
@@ -290,24 +456,93 @@ export default function Cart() {
                                 
                                 <div className="mb-6">
                                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                        Payment Method
+                                        Delivery Address
                                     </label>
-                                    <select
-                                        name="payment"
-                                        value={formData.payment}
-                                        onChange={handleChange}
-                                        className="w-full p-2 border border-gray-300 dark:border-gray-700 dark:bg-[#292929] rounded-md focus:ring-red-500 focus:border-red-500 dark:text-white"
-                                    >
-                                        <option value="cash">Cash on Delivery</option>
-                                        <option value="card">Credit Card</option>
-                                    </select>
+                                    
+                                    {addresses.length > 0 && !showAddressForm ? (
+                                        <div className="space-y-3">
+                                            <select
+                                                name="address"
+                                                value={formData.address}
+                                                onChange={handleChange}
+                                                className="w-full p-2 border border-gray-300 dark:border-gray-700 dark:bg-[#292929] rounded-md focus:ring-red-500 focus:border-red-500 dark:text-white"
+                                            >
+                                                {addresses.map((address, index) => (
+                                                    <option key={index} value={address}>
+                                                        {address}
+                                                    </option>
+                                                ))}
+                                            </select>
+                                            
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowAddressForm(true)}
+                                                className="w-full text-sm text-red-500 hover:text-red-600 text-center"
+                                            >
+                                                + Add new address
+                                            </button>
+                                        </div>
+                                    ) : showAddressForm ? (
+                                        <div className="space-y-3">
+                                            <textarea
+                                                value={newAddress}
+                                                onChange={(e) => setNewAddress(e.target.value)}
+                                                rows="2"
+                                                placeholder="Enter your full address"
+                                                className="w-full p-2 border border-gray-300 dark:border-gray-700 dark:bg-[#292929] rounded-md focus:ring-red-500 focus:border-red-500 dark:text-white"
+                                            ></textarea>
+                                            
+                                            <div className="flex items-center gap-2">
+                                                <button
+                                                    type="button"
+                                                    onClick={handleAddNewAddress}
+                                                    className="flex-1 bg-red-500 hover:bg-red-600 text-white py-1.5 px-3 rounded-md text-sm"
+                                                >
+                                                    Save Address
+                                                </button>
+                                                
+                                                {addresses.length > 0 && (
+                                                    <button
+                                                        type="button"
+                                                        onClick={() => setShowAddressForm(false)}
+                                                        className="flex-1 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-white py-1.5 px-3 rounded-md text-sm"
+                                                    >
+                                                        Cancel
+                                                    </button>
+                                                )}
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="space-y-3">
+                                            <textarea
+                                                value={newAddress}
+                                                onChange={(e) => setNewAddress(e.target.value)}
+                                                rows="2"
+                                                placeholder="Enter your full address"
+                                                className="w-full p-2 border border-gray-300 dark:border-gray-700 dark:bg-[#292929] rounded-md focus:ring-red-500 focus:border-red-500 dark:text-white"
+                                            ></textarea>
+                                            
+                                            <button
+                                                type="button"
+                                                onClick={handleAddNewAddress}
+                                                className="w-full bg-red-500 hover:bg-red-600 text-white py-1.5 px-3 rounded-md text-sm"
+                                            >
+                                                Save Address
+                                            </button>
+                                        </div>
+                                    )}
                                 </div>
                                 
                                 <button
                                     type="submit"
-                                    className="w-full bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-md transition-colors"
+                                    disabled={!checkSameRestaurant()}
+                                    className={`w-full py-2 px-4 rounded-md transition-colors ${
+                                        !checkSameRestaurant() 
+                                            ? 'bg-gray-400 cursor-not-allowed text-white' 
+                                            : 'bg-red-500 hover:bg-red-600 text-white'
+                                    }`}
                                 >
-                                    {!session?.user ? "Sign in to Checkout" : `Checkout $${totalAmount.toFixed(2)}`}
+                                    {!session?.user ? "Sign in to Checkout" : `Checkout ${formatPrice(totalAmount)}`}
                                 </button>
                             </form>
                         </div>

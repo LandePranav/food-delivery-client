@@ -6,6 +6,8 @@ import { useRef, useState, useEffect, useContext } from "react"
 import api from "@/lib/axios"
 import { context } from "@/context/contextProvider"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
+import { motion } from "framer-motion"
 
 interface Dish {
   id: string
@@ -26,6 +28,7 @@ export default function SpecialDishesCarousel() {
   const [loading, setLoading] = useState(true)
   const { setCartItems } = useContext(context)
   const [sellerNames, setSellerNames] = useState<Record<string, string>>({})
+  const [isVibrating, setIsVibrating] = useState(false)
 
   // Number of dishes to display at once based on screen size
   const [itemsToShow, setItemsToShow] = useState(1)
@@ -113,17 +116,17 @@ export default function SpecialDishesCarousel() {
   }
 
   const handleAddToCart = (dish: Dish) => {
-    setCartItems((prev: any) => [...prev, {
+    const item = {
       id: dish.id,
       name: dish.name,
       price: dish.price,
       image: getImageUrl(dish),
       sellerId: dish.sellerId
-    }])
+    };
     
-    // Toast notification instead of alert
-    const audio = new Audio("/notification.mp3")
-    audio.play().catch(e => console.log("Audio play failed:", e))
+    setCartItems((prev: any) => [...prev, item])
+    setIsVibrating(true)
+    setTimeout(() => setIsVibrating(false), 500)
   }
 
   // Helper function to get the best available image URL
@@ -204,14 +207,6 @@ export default function SpecialDishesCarousel() {
                           <ShoppingCart className="h-10 w-10 text-gray-400 dark:text-gray-600" />
                         </div>
                       )}
-                      <div className="absolute top-2 right-2">
-                        <button
-                          onClick={() => handleAddToCart(dish)}
-                          className="h-8 w-8 rounded-full bg-white/80 dark:bg-black/50 backdrop-blur-sm flex items-center justify-center text-gray-600 dark:text-gray-300 hover:bg-orange-500 hover:text-white transition-colors"
-                        >
-                          <ShoppingCart className="h-4 w-4" />
-                        </button>
-                      </div>
                       {dish.price > 15 && (
                         <Badge className="absolute bottom-2 left-2 bg-orange-500 dark:bg-[#333333] hover:bg-orange-600 dark:hover:bg-[#444444] text-white">
                           Premium
@@ -227,18 +222,32 @@ export default function SpecialDishesCarousel() {
                       <div className="mt-2 flex items-center justify-between">
                         <span className="font-bold text-orange-500 dark:text-white">${dish.price?.toFixed(2) || "0.00"}</span>
                         
-                        <div className="flex items-center">
-                          <Star className="h-3 w-3 fill-yellow-400 text-yellow-400 dark:fill-gray-400 dark:text-gray-400" />
-                          <span className="ml-1 text-xs dark:text-gray-300">{dish.rating || 4.7}</span>
-                        </div>
+                        <Button
+                          onClick={() => handleAddToCart(dish)}
+                          size="icon"
+                          className="h-8 w-8 rounded-full bg-red-500 dark:bg-red-600 text-white hover:bg-red-600 dark:hover:bg-red-700 transition-colors"
+                        >
+                          <motion.div
+                            animate={{
+                              rotate: isVibrating ? [0, -10, 10, -10, 10, 0] : 0,
+                              scale: isVibrating ? 1.3 : 1,
+                            }}
+                            transition={{
+                              rotate: {
+                                type: "tween",
+                                duration: 0.5,
+                              },
+                              scale: {
+                                type: "spring",
+                                stiffness: 300,
+                                damping: 10,
+                              }
+                            }}
+                          >
+                            <ShoppingCart className="w-4 h-4" />
+                          </motion.div>
+                        </Button>
                       </div>
-                      
-                      <button
-                        onClick={() => handleAddToCart(dish)}
-                        className="mt-3 bg-orange-500 hover:bg-orange-600 text-white py-2 rounded-lg flex items-center justify-center text-sm"
-                      >
-                        Add to Cart
-                      </button>
                     </div>
                   </div>
                 </div>

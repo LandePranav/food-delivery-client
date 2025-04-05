@@ -8,6 +8,7 @@ import api from "@/lib/axios"
 import { context } from "@/context/contextProvider"
 import { motion } from "framer-motion"
 import { Badge } from "@/components/ui/badge"
+import { Button } from "@/components/ui/button"
 
 interface FoodItem {
   id: string
@@ -42,6 +43,7 @@ export default function PopularFoods({ items = [], limit = 4 }: PopularFoodsProp
   const [loading, setLoading] = useState(true)
   const [sellerNames, setSellerNames] = useState<Record<string, string>>({})
   const [sellers, setSellers] = useState<Seller[]>([])
+  const [isVibrating, setIsVibrating] = useState(false)
   
   // Fetch sellers on component mount (only once)
   useEffect(() => {
@@ -100,7 +102,10 @@ export default function PopularFoods({ items = [], limit = 4 }: PopularFoodsProp
     
     addToCart(cartItem);
     
-    // Add toast notification instead of alert
+    // Add vibration effect
+    setIsVibrating(true);
+    setTimeout(() => setIsVibrating(false), 500);
+    
     const audio = new Audio("/notification.mp3")
     audio.play().catch(e => console.log("Audio play failed:", e))
   }
@@ -144,53 +149,72 @@ export default function PopularFoods({ items = [], limit = 4 }: PopularFoodsProp
         <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {popularItems.map((item) => (
             <div key={item.id} className="h-full">
-              <Link href={`/menu/${item.id}`}>
-                <div className="overflow-hidden border-none shadow-md rounded-2xl dark:bg-[#1E1E1E] dark:text-white bg-white h-full flex flex-col">
-                  <div className="relative h-40 w-full">
-                    {getImageUrl(item) !== "/placeholder.jpg" ? (
-                      <Image
-                        src={getImageUrl(item)}
-                        alt={item.name}
-                        fill
-                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
-                        className="object-cover"
-                      />
-                    ) : (
-                      <div className="flex items-center justify-center h-full bg-gray-100 dark:bg-[#262626]">
-                        <UtensilsCrossed className="w-14 h-14 text-gray-400 dark:text-gray-600" />
-                      </div>
-                    )}
-                    {item.discount && (
-                      <Badge className="absolute bottom-2 left-2 bg-orange-500 dark:bg-[#333333] hover:bg-orange-600 dark:hover:bg-[#444444] text-white">
-                        {item.discount}
-                      </Badge>
-                    )}
-                  </div>
-                  
-                  <div className="p-3 flex-1 flex flex-col">
-                    <h3 className="font-bold text-gray-800 dark:text-white text-sm line-clamp-1">
-                      {item.name}
-                    </h3>
-                    
-                    <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">
-                      {getSellerName(item.sellerId)}
-                    </p>
-                    
-                    <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 line-clamp-2 flex-grow">
-                      {item.description || "A delicious dish prepared with fresh ingredients."}
-                    </p>
-                    
-                    <div className="mt-2 flex items-center justify-between">
-                      <span className="font-bold text-orange-500 dark:text-white">{formatPrice(item.price || 0)}</span>
-                      
-                      <div className="flex items-center">
-                        <Star className="h-3 w-3 fill-yellow-400 text-yellow-400 dark:fill-gray-400 dark:text-gray-400" />
-                        <span className="ml-1 text-xs dark:text-gray-300">{item.rating || 4.7}</span>
-                      </div>
+              <div className="overflow-hidden border-none shadow-md rounded-2xl dark:bg-[#1E1E1E] dark:text-white bg-white h-full flex flex-col">
+                <div className="relative h-40 w-full">
+                  {getImageUrl(item) !== "/placeholder.jpg" ? (
+                    <Image
+                      src={getImageUrl(item)}
+                      alt={item.name}
+                      fill
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 25vw"
+                      className="object-cover"
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center h-full bg-gray-100 dark:bg-[#262626]">
+                      <UtensilsCrossed className="w-14 h-14 text-gray-400 dark:text-gray-600" />
                     </div>
+                  )}
+                  {item.discount && (
+                    <Badge className="absolute bottom-2 left-2 bg-orange-500 dark:bg-[#333333] hover:bg-orange-600 dark:hover:bg-[#444444] text-white">
+                      {item.discount}
+                    </Badge>
+                  )}
+                </div>
+                
+                <div className="p-3 flex-1 flex flex-col">
+                  <h3 className="font-bold text-gray-800 dark:text-white text-sm line-clamp-1">
+                    {item.name}
+                  </h3>
+                  
+                  <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">
+                    {getSellerName(item.sellerId)}
+                  </p>
+                  
+                  <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 line-clamp-2 flex-grow">
+                    {item.description || "A delicious dish prepared with fresh ingredients."}
+                  </p>
+                  
+                  <div className="mt-2 flex items-center justify-between">
+                    <span className="font-bold text-orange-500 dark:text-white">{formatPrice(item.price || 0)}</span>
+                    
+                    <Button
+                      onClick={() => handleAddToCart(item)}
+                      size="icon"
+                      className="h-8 w-8 rounded-full bg-red-500 dark:bg-red-600 text-white hover:bg-red-600 dark:hover:bg-red-700 transition-colors"
+                    >
+                      <motion.div
+                        animate={{
+                          rotate: isVibrating ? [0, -10, 10, -10, 10, 0] : 0,
+                          scale: isVibrating ? 1.3 : 1,
+                        }}
+                        transition={{
+                          rotate: {
+                            type: "tween",
+                            duration: 0.5,
+                          },
+                          scale: {
+                            type: "spring",
+                            stiffness: 300,
+                            damping: 10,
+                          }
+                        }}
+                      >
+                        <ShoppingCart className="w-4 h-4" />
+                      </motion.div>
+                    </Button>
                   </div>
                 </div>
-              </Link>
+              </div>
             </div>
           ))}
         </div>

@@ -111,33 +111,6 @@ export default function Card({ id, category, image, name, description, price, im
             <UtensilsCrossed className="w-14 h-14 text-gray-400 dark:text-gray-600" />
           </div>
         )}
-        <div className="absolute top-2 right-2">
-          <Button
-            onClick={handleAddToCart}
-            size="icon"
-            className="h-8 w-8 rounded-full bg-white/80 dark:bg-black/50 backdrop-blur-sm text-gray-600 dark:text-gray-300 hover:bg-orange-500 hover:text-white transition-colors p-1"
-          >
-            <motion.div
-              animate={{
-                rotate: isVibrating ? [0, -10, 10, -10, 10, 0] : 0,
-                scale: isVibrating ? 1.3 : 1,
-              }}
-              transition={{
-                rotate: {
-                  type: "tween",
-                  duration: 1,
-                },
-                scale: {
-                  type: "spring",
-                  stiffness: 300,
-                  damping: 10,
-                }
-              }}
-            >
-              <LuShoppingCart className="w-4 h-4" />
-            </motion.div>
-          </Button>
-        </div>
       </div>
       
       <div className="p-3 flex-1 flex flex-col">
@@ -156,18 +129,32 @@ export default function Card({ id, category, image, name, description, price, im
         <div className="mt-2 flex items-center justify-between">
           <span className="font-bold text-orange-500 dark:text-white">{formatPrice(price)}</span>
           
-          <div className="flex items-center">
-            <Star className="h-3 w-3 fill-yellow-400 text-yellow-400 dark:fill-gray-400 dark:text-gray-400" />
-            <span className="ml-1 text-xs dark:text-gray-300">4.7</span>
-          </div>
+          <Button
+            onClick={handleAddToCart}
+            size="icon"
+            className="h-8 w-8 rounded-full bg-red-500 dark:bg-red-600 text-white hover:bg-red-600 dark:hover:bg-red-700 transition-colors"
+          >
+            <motion.div
+              animate={{
+                rotate: isVibrating ? [0, -10, 10, -10, 10, 0] : 0,
+                scale: isVibrating ? 1.3 : 1,
+              }}
+              transition={{
+                rotate: {
+                  type: "tween",
+                  duration: 0.5,
+                },
+                scale: {
+                  type: "spring",
+                  stiffness: 300,
+                  damping: 10,
+                }
+              }}
+            >
+              <LuShoppingCart className="w-4 h-4" />
+            </motion.div>
+          </Button>
         </div>
-        
-        <Button
-          onClick={handleAddToCart}
-          className="mt-3 bg-orange-500 hover:bg-orange-600 text-white py-2 rounded-lg flex items-center justify-center text-sm"
-        >
-          Add to Cart
-        </Button>
       </div>
     </div>
   );

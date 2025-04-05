@@ -38,6 +38,7 @@ export async function POST(request) {
                     paymentStatus: "pending",
                     deliveryStatus: "processing",
                     paymentId: order.id,
+                    gpsLocation: data.gpsLocation,
                 },
             });
             console.log("Order Created and stored in database Successfully : ", dbOrder);

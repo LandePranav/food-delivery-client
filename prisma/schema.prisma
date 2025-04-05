@@ -23,6 +23,7 @@ model Seller {
   gpsLocation       Json?
   restaurantName    String?   @unique
   speciality        String?
+  role              String    @default("seller")
   orders            Order[]
   products          Product[]
 
