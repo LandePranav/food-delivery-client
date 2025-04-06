@@ -56,7 +56,7 @@ export async function GET(request) {
             return NextResponse.json([], { status: 200 });
         }
 
-        console.log("Orders", orders);
+        // console.log("Orders", orders);
         
         // Process orders to ensure productList is properly formatted and empty address is handled
         const processedOrders = orders.map(order => {

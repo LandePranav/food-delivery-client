@@ -107,6 +107,7 @@ model Order {
   paymentStatus   String?
   productList     Json
   gpsLocation     Json?
+  orderId         String
   seller          Seller   @relation(fields: [sellerId], references: [id])
   user            User     @relation(fields: [userId], references: [id])
 

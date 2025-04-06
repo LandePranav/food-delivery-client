@@ -72,7 +72,7 @@ export function Header() {
           {/* Location */}
           <div className="hidden md:flex items-center text-sm">
             <MapPin className="h-4 w-4 text-red-500 mr-1" />
-            <span className="text-gray-600 dark:text-gray-300">New York, NY</span>
+            <span className="text-gray-600 dark:text-gray-300">PUNE, IN</span>
           </div>
 
           {/* Search and Cart */}
@@ -96,7 +96,7 @@ export function Header() {
             {session ? (
               <UserDropdown />
             ) : (
-              <Link 
+              <Link
                 href="/api/auth/signin"
                 className="hidden md:block px-3 py-1.5 bg-red-500 text-white text-sm font-medium rounded-full hover:bg-red-600"
               >

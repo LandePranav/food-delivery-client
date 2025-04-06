@@ -14,6 +14,9 @@ export async function GET(request) {
         const query = {
             where: {
                 visible: true,
+                seller: {
+                    active: true
+                }
             },
             take: limit,
             include: {
@@ -28,7 +31,10 @@ export async function GET(request) {
         
         // Add sellerId filter if provided
         if (sellerId) {
-            query.where.sellerId = sellerId;
+            query.where = {
+                ...query.where,
+                sellerId: sellerId
+            };
         }
         
         // Add category filter if provided

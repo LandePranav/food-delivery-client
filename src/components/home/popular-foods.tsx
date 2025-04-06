@@ -44,7 +44,7 @@ export default function PopularFoods({ items = [], limit = 4 }: PopularFoodsProp
   const [loading, setLoading] = useState(true)
   const [sellerNames, setSellerNames] = useState<Record<string, string>>({})
   const [sellers, setSellers] = useState<Seller[]>([])
-  const [isVibrating, setIsVibrating] = useState(false)
+  const [vibratingItemId, setVibratingItemId] = useState<string | null>(null)
   
   // Fetch sellers on component mount (only once)
   useEffect(() => {
@@ -108,9 +108,9 @@ export default function PopularFoods({ items = [], limit = 4 }: PopularFoodsProp
     
     addToCart(cartItem);
     
-    // Add vibration effect
-    setIsVibrating(true);
-    setTimeout(() => setIsVibrating(false), 500);
+    // Add vibration effect only to the specific item
+    setVibratingItemId(item.id);
+    setTimeout(() => setVibratingItemId(null), 500);
     
     const audio = new Audio("/notification.mp3")
     audio.play().catch(e => console.log("Audio play failed:", e))
@@ -200,8 +200,8 @@ export default function PopularFoods({ items = [], limit = 4 }: PopularFoodsProp
                     >
                       <motion.div
                         animate={{
-                          rotate: isVibrating ? [0, -10, 10, -10, 10, 0] : 0,
-                          scale: isVibrating ? 1.3 : 1,
+                          rotate: vibratingItemId === item.id ? [0, -10, 10, -10, 10, 0] : 0,
+                          scale: vibratingItemId === item.id ? 1.3 : 1,
                         }}
                         transition={{
                           rotate: {

@@ -2,8 +2,10 @@ import { NextResponse } from "next/server";
 import prisma from "@/lib/prismadb";
 
 export async function GET(request, { params }) {
+
   try {
-    const { id } = params;
+
+    const { id } = await params;
 
     // Fetch the seller with the given ID
     const seller = await prisma.seller.findUnique({

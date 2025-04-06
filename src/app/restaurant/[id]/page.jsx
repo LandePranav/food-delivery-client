@@ -6,6 +6,7 @@ import { Star, Clock, MapPin, Phone, ShoppingCart } from "lucide-react"
 import { PageLayout } from "@/components/layout/page-layout"
 import api from "@/lib/axios"
 import { context } from "@/context/contextProvider"
+import { motion } from "framer-motion"
 
 export default function RestaurantDetail({ params }) {
   const { id } = params
@@ -14,6 +15,7 @@ export default function RestaurantDetail({ params }) {
   const [loading, setLoading] = useState(true)
   const { addToCart, userLocation, getDistanceFromUser } = useContext(context)
   const [distance, setDistance] = useState(null)
+  const [vibratingItemId, setVibratingItemId] = useState(null)
 
   useEffect(() => {
     const fetchRestaurantData = async () => {
@@ -62,7 +64,10 @@ export default function RestaurantDetail({ params }) {
     }
   }, [restaurant, userLocation, getDistanceFromUser])
 
-  const handleAddToCart = (product) => {
+  const handleAddToCart = (product, e) => {
+    // Prevent default form submission behavior
+    if (e) e.stopPropagation();
+    
     const item = {
       id: product.id,
       name: product.name,
@@ -73,8 +78,9 @@ export default function RestaurantDetail({ params }) {
     
     addToCart(item);
     
-    // Show a quick toast or feedback
-    alert(`${product.name} added to cart!`)
+    // Set the vibrating item ID to trigger animation
+    setVibratingItemId(product.id);
+    setTimeout(() => setVibratingItemId(null), 500);
   }
 
   // Helper function to get the best available image URL
@@ -183,13 +189,27 @@ export default function RestaurantDetail({ params }) {
                         <span className="font-semibold text-gray-900 dark:text-white">
                           {formatPrice(product.price)}
                         </span>
-                        <button
-                          onClick={() => handleAddToCart(product)}
-                          className="bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-1 rounded-full flex items-center"
-                        >
-                          <ShoppingCart className="h-3 w-3 mr-1" />
-                          Add
-                        </button>
+                        {vibratingItemId === product.id ? (
+                          <motion.button
+                            onClick={(e) => handleAddToCart(product, e)}
+                            type="button"
+                            className="bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-2 rounded-lg flex items-center"
+                            animate={{
+                              x: [0, -4, 4, -4, 4, 0],
+                              transition: { duration: 0.5 }
+                            }}
+                          >
+                            <ShoppingCart className="h-3 w-3 mr-1" />
+                          </motion.button>
+                        ) : (
+                          <button
+                            onClick={(e) => handleAddToCart(product, e)}
+                            type="button"
+                            className="bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-2 rounded-lg flex items-center"
+                          >
+                            <ShoppingCart className="h-3 w-3 mr-1" />
+                          </button>
+                        )}
                       </div>
                     </div>
                   </div>

@@ -62,13 +62,6 @@ export default function Cart() {
     // Prefill form data if user is logged in
     useEffect(() => {
         if (session?.user) {
-            setFormData(prev => ({
-                ...prev,
-                name: session.user.name || prev.name,
-                email: session.user.email || prev.email,
-            }));
-            
-            // Fetch user addresses
             fetchUserInfo();
         }
     }, [session]);
@@ -85,13 +78,14 @@ export default function Cart() {
             console.log(userInfo);
             setAddresses(userInfo.addresses || []);
             
-            // If there's at least one address, set it as the selected address
-            if (addresses && addresses.length > 0) {
-                setFormData(prev => ({
-                    ...prev,
-                    address: addresses[0]
-                }));
+            setFormData(prev => ({
+                ...prev,
+                name: userInfo.name,
+                email: userInfo.email,
+                address: userInfo?.addresses[0],
+                phone: userInfo?.phone
             }
+            ))
         } catch (error) {
             console.error("Error fetching addresses:", error);
         }
@@ -147,7 +141,7 @@ export default function Cart() {
             // Hide alert after 5 seconds
             setTimeout(() => {
                 setShowAlert(false);
-            }, 5000);
+            }, 3000);
             
             return;
         }
@@ -160,7 +154,7 @@ export default function Cart() {
             
             setTimeout(() => {
                 setShowAlert(false);
-            }, 5000);
+            }, 3000);
             
             return;
         }
@@ -185,11 +179,11 @@ export default function Cart() {
             // Initialize Razorpay
             const options = {
                 key: process.env.NEXT_PUBLIC_RAZORPAY_KEY_ID,
-                amount: totalAmount * 100,
-                currency: "INR",
+                amount: data.amount,
+                currency: data.currency,
                 name: "Food Delivery",
                 description: "Payment for items in cart",
-                order_id: data.id,
+                order_id: data.orderId,
                 handler: async (response) => {
                     console.log("Payment successful", response);
                     if (response.razorpay_payment_id) {

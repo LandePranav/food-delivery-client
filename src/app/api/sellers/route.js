@@ -22,9 +22,9 @@ export async function GET() {
           },
         },
       },
-      // where: {
-      //   active: true,
-      // },
+      where: {
+        active: true,
+      },
       orderBy: {
         restaurantName: 'asc',
       },

@@ -22,17 +22,20 @@ export async function POST(request) {
             return NextResponse.json({ error: "Delivery address is required" }, { status: 400 });
         }
         
-        const order = await razorpay.orders.create({
-            amount: data.totalAmount,
+        // Create Razorpay order (not payment)
+        const razorpayOrder = await razorpay.orders.create({
+            amount: data.totalAmount * 100, // Amount in paise
             currency: "INR",
             receipt: "receipt_" + Math.random().toString(36).substring(7),
             notes: {
                 email: data.email,
                 phone: data.phone,
                 address: data.address,
+                sellerId: data.sellerId,
             },
         });
-        if(order.status === "created"){
+        
+        if(razorpayOrder.status === "created"){
             // Prepare product items for storage
             const productItems = data.items.map(item => ({
                 id: item.id,
@@ -44,6 +47,7 @@ export async function POST(request) {
                 ...(item.imageUrls && { imageUrls: item.imageUrls }),
             }));
             
+            // Store order in database with pending status
             const dbOrder = await prisma.order.create({
                 data: {
                     userId: data.userId || "default-user-id",
@@ -53,14 +57,20 @@ export async function POST(request) {
                     deliveryAddress: data.address.trim(),
                     paymentStatus: "pending",
                     deliveryStatus: "processing",
-                    paymentId: order.id,
+                    orderId: razorpayOrder.id, // Store Razorpay order ID
+                    paymentId: null, // This will be updated when payment succeeds
                     gpsLocation: data.gpsLocation,
                 },
             });
             console.log("Order Created and stored in database Successfully : ", dbOrder);
         }
-        console.log("Order Created Successfully", order);
-        return NextResponse.json({ orderId: order.id }, { status: 200 });
+        
+        console.log("Razorpay Order Created Successfully", razorpayOrder);
+        return NextResponse.json({ 
+            orderId: razorpayOrder.id,
+            amount: razorpayOrder.amount,
+            currency: razorpayOrder.currency
+        }, { status: 200 });
     } catch (error) {
         console.log("Error in creating order", error);
         return NextResponse.json({ error: error.message }, { status: 500 });

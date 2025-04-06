@@ -29,7 +29,7 @@ export default function SpecialDishesCarousel() {
   const [loading, setLoading] = useState(true)
   const { setCartItems } = useContext(context)
   const [sellerNames, setSellerNames] = useState<Record<string, string>>({})
-  const [isVibrating, setIsVibrating] = useState(false)
+  const [vibratingItemId, setVibratingItemId] = useState<string | null>(null)
 
   // Number of dishes to display at once based on screen size
   const [itemsToShow, setItemsToShow] = useState(1)
@@ -126,8 +126,8 @@ export default function SpecialDishesCarousel() {
     };
     
     setCartItems((prev: Dish[]) => [...prev, item])
-    setIsVibrating(true)
-    setTimeout(() => setIsVibrating(false), 500)
+    setVibratingItemId(dish.id)
+    setTimeout(() => setVibratingItemId(null), 500)
   }
 
   // Helper function to get the best available image URL
@@ -230,8 +230,8 @@ export default function SpecialDishesCarousel() {
                         >
                           <motion.div
                             animate={{
-                              rotate: isVibrating ? [0, -10, 10, -10, 10, 0] : 0,
-                              scale: isVibrating ? 1.3 : 1,
+                              rotate: vibratingItemId === dish.id ? [0, -10, 10, -10, 10, 0] : 0,
+                              scale: vibratingItemId === dish.id ? 1.3 : 1,
                             }}
                             transition={{
                               rotate: {
