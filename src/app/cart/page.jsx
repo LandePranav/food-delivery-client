@@ -82,7 +82,7 @@ export default function Cart() {
                 ...prev,
                 name: userInfo.name,
                 email: userInfo.email,
-                address: userInfo?.addresses[0],
+                address: userInfo?.addresses[0] || "",
                 phone: userInfo?.phone
             }
             ))
@@ -148,14 +148,23 @@ export default function Cart() {
         
         // Validate that address is not empty
         if (!formData.address || formData.address.trim() === '') {
-            setAlertType("error");
-            setAlertMessage("Please provide a delivery address");
-            setShowAlert(true);
-            
-            setTimeout(() => {
-                setShowAlert(false);
-            }, 3000);
-            
+
+            if(newAddress !== ""){
+                setFormData(prev => ({
+                    ...prev,
+                    address: newAddress
+                }))
+            }
+            else{
+                setAlertType("error");
+                setAlertMessage("Please provide a delivery address");
+                setShowAlert(true);
+                
+                setTimeout(() => {
+                    setShowAlert(false);
+                }, 3000);
+            }
+
             return;
         }
         
@@ -413,7 +422,7 @@ export default function Cart() {
                                     <input
                                         type="text"
                                         name="name"
-                                        value={formData.name}
+                                        value={formData?.name || ""}
                                         onChange={handleChange}
                                         required
                                         className="w-full p-2 border border-gray-300 dark:border-gray-700 dark:bg-[#292929] rounded-md focus:ring-red-500 focus:border-red-500 dark:text-white"
@@ -427,7 +436,7 @@ export default function Cart() {
                                     <input
                                         type="email"
                                         name="email"
-                                        value={formData.email}
+                                        value={formData?.email || ""}
                                         onChange={handleChange}
                                         required
                                         className="w-full p-2 border border-gray-300 dark:border-gray-700 dark:bg-[#292929] rounded-md focus:ring-red-500 focus:border-red-500 dark:text-white"
@@ -441,7 +450,7 @@ export default function Cart() {
                                     <input
                                         type="tel"
                                         name="phone"
-                                        value={formData.phone}
+                                        value={formData?.phone || ""}
                                         onChange={handleChange}
                                         required
                                         className="w-full p-2 border border-gray-300 dark:border-gray-700 dark:bg-[#292929] rounded-md focus:ring-red-500 focus:border-red-500 dark:text-white"
@@ -457,7 +466,7 @@ export default function Cart() {
                                         <div className="space-y-3">
                                             <select
                                                 name="address"
-                                                value={formData.address}
+                                                value={formData?.address || ""}
                                                 onChange={handleChange}
                                                 className="w-full p-2 border border-gray-300 dark:border-gray-700 dark:bg-[#292929] rounded-md focus:ring-red-500 focus:border-red-500 dark:text-white"
                                             >
@@ -479,8 +488,14 @@ export default function Cart() {
                                     ) : showAddressForm ? (
                                         <div className="space-y-3">
                                             <textarea
-                                                value={newAddress}
-                                                onChange={(e) => setNewAddress(e.target.value)}
+                                                value={newAddress || ""}
+                                                onChange={(e) => {
+                                                    setNewAddress(e.target.value);
+                                                    setFormData(prev => ({
+                                                        ...prev,
+                                                        address: e.target.value
+                                                    }));
+                                                }}
                                                 rows="2"
                                                 placeholder="Enter your full address"
                                                 className="w-full p-2 border border-gray-300 dark:border-gray-700 dark:bg-[#292929] rounded-md focus:ring-red-500 focus:border-red-500 dark:text-white"
@@ -509,7 +524,7 @@ export default function Cart() {
                                     ) : (
                                         <div className="space-y-3">
                                             <textarea
-                                                value={newAddress}
+                                                value={newAddress || ""}
                                                 onChange={(e) => setNewAddress(e.target.value)}
                                                 rows="2"
                                                 placeholder="Enter your full address"
