@@ -7,11 +7,14 @@ import { PageLayout } from "@/components/layout/page-layout";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { User, Package, MapPin, Phone, Mail } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
 
 export default function Profile() {
     const {data: session} = useSession();
     const [orders, setOrders] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
+    const router = useRouter();
     
     useEffect(() => {
         const fetchOrders = async () => {
@@ -37,6 +40,9 @@ export default function Profile() {
             <PageLayout>
                 <div className="flex flex-col items-center justify-center py-12">
                     <h2 className="text-lg font-semibold mb-3 text-gray-900 dark:text-white">Please sign in to view your profile</h2>
+                    <Button onClick={()=> router.push("/api/auth/signin")} className="text-red-500 my-8 border-2 border-yellow-400">
+                        SIGN - IN
+                    </Button>
                 </div>
             </PageLayout>
         )

@@ -65,8 +65,11 @@ export default function RestaurantDetail({ params }) {
   }, [restaurant, userLocation, getDistanceFromUser])
 
   const handleAddToCart = (product, e) => {
-    // Prevent default form submission behavior
-    if (e) e.stopPropagation();
+    // Prevent default form submission behavior and stop event propagation
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
     
     const item = {
       id: product.id,

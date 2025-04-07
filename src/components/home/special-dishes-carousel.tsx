@@ -221,7 +221,7 @@ export default function SpecialDishesCarousel() {
                       <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{getSellerName(dish.sellerId)}</p>
                       
                       <div className="mt-2 flex items-center justify-between">
-                        <span className="font-bold text-orange-500 dark:text-white">${dish.price?.toFixed(2) || "0.00"}</span>
+                        <span className="font-bold text-orange-500 dark:text-white">₹ {dish.price?.toFixed(2) || "0.00"}</span>
                         
                         <Button
                           onClick={() => handleAddToCart(dish)}

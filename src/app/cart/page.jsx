@@ -36,28 +36,36 @@ export default function Cart() {
     const [showAddressForm, setShowAddressForm] = useState(false);
     const [newAddress, setNewAddress] = useState("");
     const [userLocation, setUserLocation] = useState({ latitude: 0, longitude: 0 });
+    const [locationError, setLocationError] = useState(null);
 
     // Calculate total quantity of items in cart
     const totalCartItems = cartItems.reduce((total, item) => total + (item.quantity || 1), 0);
 
     // Get user's current location
-    useEffect(() => {
-        if (navigator.geolocation) {
+    const requestLocationPermission = () => {
+        return new Promise((resolve, reject) => {
+            if (!navigator.geolocation) {
+                reject(new Error("Geolocation is not supported by this browser."));
+                return;
+            }
+
             navigator.geolocation.getCurrentPosition(
                 (position) => {
-                    setUserLocation({
+                    const location = {
                         latitude: position.coords.latitude,
                         longitude: position.coords.longitude
-                    });
+                    };
+                    setUserLocation(location);
+                    setLocationError(null);
+                    resolve(location);
                 },
                 (error) => {
-                    console.error("Error getting location:", error);
+                    setLocationError(error.message);
+                    reject(error);
                 }
             );
-        } else {
-            console.error("Geolocation is not supported by this browser.");
-        }
-    }, []);
+        });
+    };
 
     // Prefill form data if user is logged in
     useEffect(() => {
@@ -82,10 +90,14 @@ export default function Cart() {
                 ...prev,
                 name: userInfo.name,
                 email: userInfo.email,
-                address: userInfo?.addresses[0] || "",
+                address: userInfo?.addresses && userInfo.addresses.length > 0 ? userInfo.addresses[0] : "",
                 phone: userInfo?.phone
+            }))
+            
+            // If user has no addresses, show the address form by default
+            if (!userInfo.addresses || userInfo.addresses.length === 0) {
+                setShowAddressForm(true);
             }
-            ))
         } catch (error) {
             console.error("Error fetching addresses:", error);
         }
@@ -131,6 +143,21 @@ export default function Cart() {
             router.push('/api/auth/signin');
             return;
         }
+
+        // Check if we have valid GPS location
+        if (userLocation.latitude === 0 && userLocation.longitude === 0) {
+            try {
+                await requestLocationPermission();
+            } catch (error) {
+                setAlertType("error");
+                setAlertMessage("Location permission is required for delivery. Please enable location access and try again.");
+                setShowAlert(true);
+                setTimeout(() => {
+                    setShowAlert(false);
+                }, 5000);
+                return;
+            }
+        }
         
         // Check if all products belong to the same restaurant
         if (!checkSameRestaurant()) {
@@ -146,27 +173,38 @@ export default function Cart() {
             return;
         }
         
+        // Handle new address if it exists and user has no saved addresses
+        if (addresses.length === 0 && newAddress.trim() !== '') {
+            try {
+                const response = await api.patch('/users', { address: newAddress });
+                const data = response.data;
+                if (data.success) {
+                    setAddresses([newAddress]);
+                    setFormData(prev => ({
+                        ...prev,
+                        address: newAddress
+                    }));
+                }
+            } catch (error) {
+                console.error("Error adding address:", error);
+            }
+        }
+        
         // Validate that address is not empty
-        if (!formData.address || formData.address.trim() === '') {
-
-            if(newAddress !== ""){
-                setFormData(prev => ({
-                    ...prev,
-                    address: newAddress
-                }))
-            }
-            else{
-                setAlertType("error");
-                setAlertMessage("Please provide a delivery address");
-                setShowAlert(true);
-                
-                setTimeout(() => {
-                    setShowAlert(false);
-                }, 3000);
-            }
-
+        if (!formData.address && !newAddress) {
+            setAlertType("error");
+            setAlertMessage("Please provide a delivery address");
+            setShowAlert(true);
+            
+            setTimeout(() => {
+                setShowAlert(false);
+            }, 3000);
+            
             return;
         }
+        
+        // Use newAddress if formData.address is empty
+        const deliveryAddress = formData.address || newAddress;
         
         setIsPaymentProcessing(true);
         
@@ -174,6 +212,7 @@ export default function Cart() {
             // Create an order with user details and cart items
             const orderData = {
                 ...formData,
+                address: deliveryAddress,
                 items: cartItems,
                 userId: session.user.id,
                 totalAmount: totalAmount,
@@ -220,7 +259,7 @@ export default function Cart() {
                     contact: formData.phone,
                 },
                 notes: {
-                    address: formData.address,
+                    address: deliveryAddress,
                     gpsLocation: userLocation
                 },
                 theme: {
@@ -415,144 +454,136 @@ export default function Cart() {
                             )}
                             
                             <form onSubmit={handleSubmit}>
-                                <div className="mb-4">
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                        Full Name
-                                    </label>
-                                    <input
-                                        type="text"
-                                        name="name"
-                                        value={formData?.name || ""}
-                                        onChange={handleChange}
-                                        required
-                                        className="w-full p-2 border border-gray-300 dark:border-gray-700 dark:bg-[#292929] rounded-md focus:ring-red-500 focus:border-red-500 dark:text-white"
-                                    />
-                                </div>
-                                
-                                <div className="mb-4">
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                        Email
-                                    </label>
-                                    <input
-                                        type="email"
-                                        name="email"
-                                        value={formData?.email || ""}
-                                        onChange={handleChange}
-                                        required
-                                        className="w-full p-2 border border-gray-300 dark:border-gray-700 dark:bg-[#292929] rounded-md focus:ring-red-500 focus:border-red-500 dark:text-white"
-                                    />
-                                </div>
-                                
-                                <div className="mb-4">
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                        Phone Number
-                                    </label>
-                                    <input
-                                        type="tel"
-                                        name="phone"
-                                        value={formData?.phone || ""}
-                                        onChange={handleChange}
-                                        required
-                                        className="w-full p-2 border border-gray-300 dark:border-gray-700 dark:bg-[#292929] rounded-md focus:ring-red-500 focus:border-red-500 dark:text-white"
-                                    />
-                                </div>
-                                
-                                <div className="mb-6">
-                                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                        Delivery Address
-                                    </label>
-                                    
-                                    {addresses.length > 0 && !showAddressForm ? (
-                                        <div className="space-y-3">
-                                            <select
-                                                name="address"
-                                                value={formData?.address || ""}
-                                                onChange={handleChange}
-                                                className="w-full p-2 border border-gray-300 dark:border-gray-700 dark:bg-[#292929] rounded-md focus:ring-red-500 focus:border-red-500 dark:text-white"
-                                            >
-                                                {addresses.map((address, index) => (
-                                                    <option key={index} value={address}>
-                                                        {address}
-                                                    </option>
-                                                ))}
-                                            </select>
+                                {
+                                    session?.user && (
+                                        <>
+                                            <div className="mb-4">
+                                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                                    Full Name
+                                                </label>
+                                                <input
+                                                    type="text"
+                                                    name="name"
+                                                    value={formData?.name || ""}
+                                                    onChange={handleChange}
+                                                    required
+                                                    className="w-full p-2 border border-gray-300 dark:border-gray-700 dark:bg-[#292929] rounded-md focus:ring-red-500 focus:border-red-500 dark:text-white"
+                                                />
+                                            </div>
                                             
-                                            <button
-                                                type="button"
-                                                onClick={() => setShowAddressForm(true)}
-                                                className="w-full text-sm text-red-500 hover:text-red-600 text-center"
-                                            >
-                                                + Add new address
-                                            </button>
-                                        </div>
-                                    ) : showAddressForm ? (
-                                        <div className="space-y-3">
-                                            <textarea
-                                                value={newAddress || ""}
-                                                onChange={(e) => {
-                                                    setNewAddress(e.target.value);
-                                                    setFormData(prev => ({
-                                                        ...prev,
-                                                        address: e.target.value
-                                                    }));
-                                                }}
-                                                rows="2"
-                                                placeholder="Enter your full address"
-                                                className="w-full p-2 border border-gray-300 dark:border-gray-700 dark:bg-[#292929] rounded-md focus:ring-red-500 focus:border-red-500 dark:text-white"
-                                            ></textarea>
+                                            <div className="mb-4">
+                                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                                    Email
+                                                </label>
+                                                <input
+                                                    type="email"
+                                                    name="email"
+                                                    value={formData?.email || ""}
+                                                    onChange={handleChange}
+                                                    required
+                                                    className="w-full p-2 border border-gray-300 dark:border-gray-700 dark:bg-[#292929] rounded-md focus:ring-red-500 focus:border-red-500 dark:text-white"
+                                                />
+                                            </div>
                                             
-                                            <div className="flex items-center gap-2">
-                                                <button
-                                                    type="button"
-                                                    onClick={handleAddNewAddress}
-                                                    className="flex-1 bg-red-500 hover:bg-red-600 text-white py-1.5 px-3 rounded-md text-sm"
-                                                >
-                                                    Save Address
-                                                </button>
+                                            <div className="mb-4">
+                                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                                    Phone Number
+                                                </label>
+                                                <input
+                                                    type="tel"
+                                                    name="phone"
+                                                    value={formData?.phone || ""}
+                                                    onChange={handleChange}
+                                                    required
+                                                    className="w-full p-2 border border-gray-300 dark:border-gray-700 dark:bg-[#292929] rounded-md focus:ring-red-500 focus:border-red-500 dark:text-white"
+                                                />
+                                            </div>
+                                            
+                                            <div className="mb-6">
+                                                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                                    Delivery Address
+                                                </label>
                                                 
-                                                {addresses.length > 0 && (
-                                                    <button
-                                                        type="button"
-                                                        onClick={() => setShowAddressForm(false)}
-                                                        className="flex-1 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-white py-1.5 px-3 rounded-md text-sm"
-                                                    >
-                                                        Cancel
-                                                    </button>
+                                                {addresses.length > 0 && !showAddressForm ? (
+                                                    <div className="space-y-3">
+                                                        <select
+                                                            name="address"
+                                                            value={formData?.address || ""}
+                                                            onChange={handleChange}
+                                                            className="w-full p-2 border border-gray-300 dark:border-gray-700 dark:bg-[#292929] rounded-md focus:ring-red-500 focus:border-red-500 dark:text-white"
+                                                        >
+                                                            {addresses.map((address, index) => (
+                                                                <option key={index} value={address}>
+                                                                    {address}
+                                                                </option>
+                                                            ))}
+                                                        </select>
+                                                        
+                                                        <button
+                                                            type="button"
+                                                            onClick={() => setShowAddressForm(true)}
+                                                            className="w-full text-sm text-red-500 hover:text-red-600 text-center"
+                                                        >
+                                                            + Add new address
+                                                        </button>
+                                                    </div>
+                                                ) : (
+                                                    <div className="space-y-3">
+                                                        <textarea
+                                                            value={newAddress}
+                                                            onChange={(e) => setNewAddress(e.target.value)}
+                                                            rows="2"
+                                                            placeholder="Enter your full address"
+                                                            className="w-full p-2 border border-gray-300 dark:border-gray-700 dark:bg-[#292929] rounded-md focus:ring-red-500 focus:border-red-500 dark:text-white"
+                                                            required={addresses.length === 0}
+                                                        ></textarea>
+                                                        
+                                                        {addresses.length > 0 && (
+                                                            <div className="flex items-center gap-2">
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={handleAddNewAddress}
+                                                                    className="flex-1 bg-red-500 hover:bg-red-600 text-white py-1.5 px-3 rounded-md text-sm"
+                                                                >
+                                                                    Save Address
+                                                                </button>
+                                                                
+                                                                <button
+                                                                    type="button"
+                                                                    onClick={() => setShowAddressForm(false)}
+                                                                    className="flex-1 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-800 dark:text-white py-1.5 px-3 rounded-md text-sm"
+                                                                >
+                                                                    Cancel
+                                                                </button>
+                                                            </div>
+                                                        )}
+                                                    </div>
                                                 )}
                                             </div>
-                                        </div>
+                                        </>
+                                    )
+                                }
+
+                                {
+                                    session?.user ? (
+                                        <button
+                                            type="submit"
+                                            disabled={!checkSameRestaurant()}
+                                            className={`w-full py-2 px-4 rounded-md transition-colors ${
+                                                !checkSameRestaurant()
+                                                    ? 'bg-gray-400 cursor-not-allowed text-white' 
+                                                    : 'bg-red-500 hover:bg-red-600 text-white'
+                                            }`}
+                                        >
+                                            {`Checkout ${formatPrice(totalAmount)}`}
+                                        </button>
+
                                     ) : (
-                                        <div className="space-y-3">
-                                            <textarea
-                                                value={newAddress || ""}
-                                                onChange={(e) => setNewAddress(e.target.value)}
-                                                rows="2"
-                                                placeholder="Enter your full address"
-                                                className="w-full p-2 border border-gray-300 dark:border-gray-700 dark:bg-[#292929] rounded-md focus:ring-red-500 focus:border-red-500 dark:text-white"
-                                            ></textarea>
-                                            
-                                            <button
-                                                type="button"
-                                                onClick={handleAddNewAddress}
-                                                className="w-full bg-red-500 hover:bg-red-600 text-white py-1.5 px-3 rounded-md text-sm"
-                                            >
-                                                Save Address
-                                            </button>
-                                        </div>
-                                    )}
-                                </div>
-                                
-                                <button
-                                    type="submit"
-                                    disabled={!checkSameRestaurant()}
-                                    className={`w-full py-2 px-4 rounded-md transition-colors ${
-                                        !checkSameRestaurant() 
-                                            ? 'bg-gray-400 cursor-not-allowed text-white' 
-                                            : 'bg-red-500 hover:bg-red-600 text-white'
-                                    }`}
-                                >
-                                    {!session?.user ? "Sign in to Checkout" : `Checkout ${formatPrice(totalAmount)}`}
-                                </button>
+                                        <Button className="bg-red-700 text-white flex text-md font-semibold from-mono mx-auto" variant={'default'} onClick={()=> router.push("/api/auth/signin")}>
+                                            Sign In To Checkout
+                                        </Button>
+                                    )
+                                }
                             </form>
                         </div>
                     </div>

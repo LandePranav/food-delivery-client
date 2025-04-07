@@ -37,6 +37,11 @@ export default function RestaurantsPage() {
             }
           })
           
+          // Filter restaurants within 7.5km range
+          formattedRestaurants = formattedRestaurants.filter(restaurant => 
+            restaurant.calculatedDistance !== null && restaurant.calculatedDistance <= 7.5
+          )
+          
           // Sort by distance if available
           formattedRestaurants.sort((a, b) => {
             if (a.calculatedDistance !== null && b.calculatedDistance !== null) {
@@ -103,7 +108,11 @@ export default function RestaurantsPage() {
         ) : filteredRestaurants.length === 0 ? (
           <div className="text-center py-16 bg-white dark:bg-[#1E1E1E] rounded-lg">
             <p className="text-gray-500 dark:text-gray-400">
-              {searchTerm ? "No restaurants match your search" : "No restaurants available"}
+              {searchTerm 
+                ? "No restaurants match your search" 
+                : userLocation 
+                  ? "No restaurants available within 7.5km of your location"
+                  : "Please enable location access to see nearby restaurants"}
             </p>
           </div>
         ) : (

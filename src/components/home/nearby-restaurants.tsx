@@ -101,15 +101,20 @@ export default function NearbyRestaurants({ restaurants = [] }: NearbyRestaurant
                 }
               })
               
+              // Filter restaurants within 7.5km range
+              const nearbyRestaurants = formattedRestaurants.filter(restaurant => 
+                restaurant.calculatedDistance !== null && restaurant.calculatedDistance <= 7.5
+              )
+              
               // Sort by distance if calculated
-              formattedRestaurants.sort((a: Restaurant, b: Restaurant) => {
+              nearbyRestaurants.sort((a: Restaurant, b: Restaurant) => {
                 const distA = a.calculatedDistance ?? Infinity
                 const distB = b.calculatedDistance ?? Infinity
                 return distA - distB
               })
               
-              console.log("Formatted restaurants:", formattedRestaurants) // Debug
-              setNearbyRestaurants(formattedRestaurants)
+              console.log("Formatted restaurants:", nearbyRestaurants) // Debug
+              setNearbyRestaurants(nearbyRestaurants)
             } else {
               console.log("No restaurants data found")
               setNearbyRestaurants([])
@@ -156,7 +161,11 @@ export default function NearbyRestaurants({ restaurants = [] }: NearbyRestaurant
         <div className="text-center py-8 bg-white dark:bg-[#1E1E1E] rounded-xl shadow-sm">
           <div className="flex flex-col items-center gap-2">
             <Store className="h-10 w-10 text-gray-400" />
-            <p className="text-gray-500 dark:text-gray-400">No restaurants found nearby</p>
+            <p className="text-gray-500 dark:text-gray-400">
+              {userLocation 
+                ? "No restaurants available within 7.5km of your location"
+                : "Please enable location access to see nearby restaurants"}
+            </p>
           </div>
         </div>
       ) : (
@@ -192,11 +201,11 @@ export default function NearbyRestaurants({ restaurants = [] }: NearbyRestaurant
                 <h3 className="font-medium text-base dark:text-white">{restaurant.name}</h3>
                 <p className="text-sm text-gray-500 dark:text-gray-400">{restaurant.cuisine} • {restaurant.distance}</p>
                 <div className="flex items-center justify-between mt-2">
-                  <div className="flex items-center">
+                  {/* <div className="flex items-center">
                     <Star className="h-4 w-4 fill-yellow-400 text-yellow-400 dark:fill-white dark:text-white mr-1" />
                     <span className="text-sm font-medium dark:text-white">{restaurant.rating?.toFixed(1)}</span>
                     <span className="ml-1 text-sm text-gray-500 dark:text-gray-400">({restaurant.reviewCount})</span>
-                  </div>
+                  </div> */}
                   
                   <div className="text-sm text-gray-500 dark:text-gray-400">
                     {restaurant.deliveryTime}
