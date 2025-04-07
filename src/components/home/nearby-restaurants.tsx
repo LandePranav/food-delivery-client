@@ -3,7 +3,8 @@
 import { useState, useEffect, useContext } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { Star, Store } from "lucide-react"
+import { Store } from "lucide-react"
+// import { Star, Store } from "lucide-react"
 import api from "@/lib/axios"
 import { context } from "@/context/contextProvider"
 
