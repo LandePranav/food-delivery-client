@@ -47,6 +47,7 @@ export async function GET(request) {
                     select: {
                         restaurantName: true,
                         username: true,
+                        // bankDetails explicitly excluded
                     }
                 }
             }

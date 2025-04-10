@@ -24,6 +24,8 @@ model Seller {
   restaurantName    String?   @unique
   speciality        String?
   role              String    @default("seller")
+  deliveryCharge    Int       @default(0)
+  bankDetails       Json?
   orders            Order[]
   products          Product[]
 
@@ -89,6 +91,7 @@ model Product {
   updatedAt   DateTime @updatedAt
   imageUrls   String[]
   categories  String[]
+  isFeatured  Boolean  @default(false)
   seller      Seller   @relation(fields: [sellerId], references: [id])
 
   @@map("products")
@@ -102,7 +105,7 @@ model Order {
   deliveryAddress String
   createdAt       DateTime @default(now())
   updatedAt       DateTime @updatedAt
-  deliveryStatus  String?
+  deliveryStatus  DeliveryStatus? @default(PROCESSING)
   paymentId       String?
   paymentStatus   String?
   productList     Json
@@ -113,3 +116,11 @@ model Order {
 
   @@map("orders")
 }
+
+enum DeliveryStatus {
+  PROCESSING
+  ON_THE_WAY
+  DELIVERED
+  CANCELLED
+}
+

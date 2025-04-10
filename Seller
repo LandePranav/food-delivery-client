@@ -1,0 +1,20 @@
+Environment variables loaded from .env
+Prisma schema loaded from prisma\schema.prisma
+Datasource "db": PostgreSQL database "postgres", schema "public" at "accelerate.prisma-data.net"
+
+Applying migration `20250410175804_add_bank_details`
+
+The following migration(s) have been created and applied from new schema changes:
+
+migrations/
+  └─ 20250410175804_add_bank_details/
+    └─ migration.sql
+
+Your database is now in sync with your schema.
+
+Running generate... (Use --skip-generate to skip the generators)
+[2K[1A[2K[GRunning generate... - Prisma Client
+[2K[1A[2K[G✔ Generated Prisma Client (v6.5.0, engine=none) to .\node_modules\@prisma\client
+ in 205ms
+
+

@@ -22,6 +22,7 @@ export async function GET(request, { params }) {
         profile: true,
         gpsLocation: true,
         active: true,
+        // Explicitly excluding bankDetails
       },
     });
 

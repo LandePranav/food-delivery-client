@@ -13,13 +13,13 @@ interface Dish {
   id: string
   name: string
   price: number
-  description?: string
-  image?: string
-  imageUrl?: string
-  imageUrls?: string[]
-  sellerId?: string
-  categoryId?: string
-  rating?: number
+  description: string
+  imageUrls: string[]
+  categories: string[]
+  sellerId: string
+  restaurantName?: string
+  visible?: boolean
+  isFeatured?: boolean
 }
 
 
@@ -37,12 +37,14 @@ export default function SpecialDishesCarousel() {
   useEffect(() => {
     const fetchSpecialDishes = async () => {
       try {
-        const response = await api.get("/products?limit=8")
+        const response = await api.get("/products")
+        console.log("Special dishes data:", response.data) // Debug
         if (response.status === 200) {
           // Ensure we have data before setting state
           if (response.data && Array.isArray(response.data) && response.data.length > 0) {
             console.log("Special dishes data:", response.data) // Debug
-            setSpecialDishes(response.data)
+            const filteredDishes = response.data.filter((dish: Dish) => dish.isFeatured === true)
+            setSpecialDishes(filteredDishes)
             
             // Get unique seller IDs
             const sellerIds = [...new Set(response.data

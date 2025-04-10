@@ -24,6 +24,8 @@ export async function GET(request) {
                     select: {
                         restaurantName: true,
                         username: true,
+                        deliveryCharge: true
+                        // bankDetails explicitly excluded
                     },
                 },
             },
@@ -48,7 +50,8 @@ export async function GET(request) {
         if (sort === 'popularity') {
             // This is a placeholder for sorting by popularity
             // In a real app, you might have a views or orders count to sort by
-            query.orderBy = { price: 'desc' };
+            query.orderBy = { createdAt: 'desc' };
+            query.take = 7;
         } else if (sort === 'price-asc') {
             query.orderBy = { price: 'asc' };
         } else if (sort === 'price-desc') {
@@ -57,19 +60,22 @@ export async function GET(request) {
             // Default sort by newest
             query.orderBy = { createdAt: 'desc' };
         }
-        
+
         const products = await prisma.product.findMany(query);
+
+        // console.log("products: ", products);
         
         // Format the response
         const formattedProducts = products.map(product => ({
             id: product.id,
             name: product.name,
-            price: product.price,
+            price: Number(product.price) + Number(product.seller.deliveryCharge),
             description: product.description,
             imageUrls: product.imageUrls,
             categories: product.categories,
             sellerId: product.sellerId,
             restaurantName: product.seller.restaurantName || product.seller.username,
+            isFeatured: product.isFeatured
         }));
         
         return NextResponse.json(formattedProducts);

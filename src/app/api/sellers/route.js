@@ -21,6 +21,7 @@ export async function GET() {
             products: true,
           },
         },
+        // Explicitly excluding bankDetails
       },
       where: {
         active: true,
