@@ -134,8 +134,8 @@ export default function SpecialDishesCarousel() {
 
   // Helper function to get the best available image URL
   const getImageUrl = (item: Dish) => {
-    if (item.imageUrl) return item.imageUrl
-    if (item.image) return item.image
+    // if (item?.imageUrl) return item?.imageUrl
+    // if (item.image) return item.image
     if (item.imageUrls && item.imageUrls.length > 0) return item.imageUrls[0]
     return "/placeholder.jpg"
   }

@@ -6,6 +6,8 @@ import { PageLayout } from "@/components/layout/page-layout"
 import Card from "@/components/home/card"
 import api from "@/lib/axios"
 import { Loader2 } from "lucide-react"
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 
 // Create a separate component for the menu content
 function MenuContent() {
@@ -18,6 +20,7 @@ function MenuContent() {
   const [filtered, setFiltered] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const [activeCategory, setActiveCategory] = useState(categoryFilter || "")
+  const [priceFilter, setPriceFilter] = useState(0)
   
   // Categories list
   const categories = [
@@ -30,6 +33,15 @@ function MenuContent() {
     { name: "Sushi", emoji: "🍣" },
     { name: "Dessert", emoji: "🍰" },
     { name: "Chicken", emoji: "🍗" },
+  ]
+
+  // Price filter options
+  const priceRanges = [
+    { value: 0, label: "💰 Price - any" },
+    { value: 50, label: "💰 < ₹50 Price" },
+    { value: 100, label: "💰 < ₹100 Price" },
+    { value: 150, label: "💰 < ₹150 Price" },
+    { value: 200, label: "💰 < ₹200 Price" }
   ]
 
   // Load initial products
@@ -50,7 +62,7 @@ function MenuContent() {
     fetchProducts()
   }, [])
 
-  // Filter products based on search query and category
+  // Filter products based on search query, category, and price
   useEffect(() => {
     if (allProducts.length > 0) {
       let result = [...allProducts]
@@ -77,15 +89,27 @@ function MenuContent() {
         })
       }
       
+      // Apply price filter
+      if (priceFilter > 0) {
+        result = result.filter(item => 
+          item.price && parseFloat(item.price) <= priceFilter
+        )
+      }
+      
       setFiltered(result)
     }
-  }, [searchText, activeCategory, allProducts])
+  }, [searchText, activeCategory, priceFilter, allProducts])
 
   // Apply URL params when component mounts
   useEffect(() => {
     if (searchQuery) setSearchText(searchQuery)
     if (categoryFilter) setActiveCategory(categoryFilter)
   }, [searchQuery, categoryFilter])
+
+  // Handle price filter change
+  const handlePriceFilterChange = (value) => {
+    setPriceFilter(Number(value))
+  }
 
   return (
     <div className="w-full pb-4">
@@ -117,6 +141,25 @@ function MenuContent() {
             <span>{category.name}</span>
           </button>
         ))}
+      </div>
+
+      {/* Price Filter Select using shadcn Select component */}
+      <div className="mb-4 w-fit">
+        <Select 
+          value={priceFilter.toString()} 
+          onValueChange={handlePriceFilterChange}
+        >
+          <SelectTrigger className="w-[180px] bg-gray-700 bg-opacity-50 font-semibold text-white border-none focus:ring-0 focus:ring-offset-0">
+            <SelectValue placeholder="Select price range" />
+          </SelectTrigger>
+          <SelectContent>
+            {priceRanges.map((range) => (
+              <SelectItem key={range.value} value={range.value.toString()}>
+                {range.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Loading State */}
