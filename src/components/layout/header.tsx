@@ -85,7 +85,7 @@ export function Header() {
             </button>
             
             <Link href="/cart" className="relative">
-              <ShoppingCart className="h-5 w-5 text-gray-700 dark:text-gray-300" />
+              <ShoppingCart className="h-6 w-6 text-gray-700 dark:text-gray-300" />
               {totalCartItems > 0 && (
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-4 h-4 flex items-center justify-center rounded-full">
                   {totalCartItems}

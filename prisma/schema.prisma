@@ -107,11 +107,11 @@ model Order {
   deliveryAddress String
   createdAt       DateTime        @default(now())
   updatedAt       DateTime        @updatedAt
-  paymentId       String?
+  paymentId       String?         @unique
   paymentStatus   String?
   productList     Json
   gpsLocation     Json?
-  orderId         String
+  orderId         String?         @unique
   deliveryStatus  DeliveryStatus? @default(PROCESSING)
   seller          Seller          @relation(fields: [sellerId], references: [id])
   user            User            @relation(fields: [userId], references: [id])

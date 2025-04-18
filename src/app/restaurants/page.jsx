@@ -77,7 +77,7 @@ export default function RestaurantsPage() {
 
   return (
     <PageLayout>
-      <div className="container mx-auto px-4 py-8">
+      <div className="container mx-auto px-4 pt-2 py-8">
         <h1 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">All Restaurants</h1>
         
         {/* Search and Filter Bar */}

@@ -1,0 +1,12 @@
+Environment variables loaded from .env
+Prisma schema loaded from prisma\schema.prisma
+Datasource "db": PostgreSQL database "postgres", schema "public" at "accelerate.prisma-data.net"
+
+
+⚠️  Warnings for the current datasource:
+
+  • A unique constraint covering the columns `[paymentId]` on the table `orders` will be added. If there are existing duplicate values, this will fail.
+  • A unique constraint covering the columns `[orderId]` on the table `orders` will be added. If there are existing duplicate values, this will fail.
+
+[?25l[2K[1G[36m?[39m [1mAre you sure you want to create and apply this migration?[22m [90m»[39m [90m(y/N)[39m[2K[1G[2K[1G[32m√[39m [1mAre you sure you want to create and apply this migration?[22m [90m...[39m no
+[?25hMigration cancelled.

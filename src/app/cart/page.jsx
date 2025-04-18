@@ -55,9 +55,17 @@ export default function Cart() {
     const requestLocationPermission = () => {
         return new Promise((resolve, reject) => {
             if (!navigator.geolocation) {
-                reject(new Error("Geolocation is not supported by this browser."));
+                const error = "Geolocation is not supported by this browser.";
+                setLocationError(error);
+                reject(new Error(error));
                 return;
             }
+
+            const options = {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
+            };
 
             navigator.geolocation.getCurrentPosition(
                 (position) => {
@@ -70,9 +78,24 @@ export default function Cart() {
                     resolve(location);
                 },
                 (error) => {
-                    setLocationError(error.message);
-                    reject(error);
-                }
+                    let errorMessage = "Unknown location error occurred.";
+                    
+                    switch(error.code) {
+                        case error.PERMISSION_DENIED:
+                            errorMessage = "Location permission was denied. Please enable location services in your browser settings.";
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            errorMessage = "Location information is unavailable. Please try again.";
+                            break;
+                        case error.TIMEOUT:
+                            errorMessage = "Location request timed out. Please try again.";
+                            break;
+                    }
+                    
+                    setLocationError(errorMessage);
+                    reject(new Error(errorMessage));
+                },
+                options
             );
         });
     };
@@ -87,6 +110,18 @@ export default function Cart() {
     useEffect(() => {
         setTotalAmount(calculateCartTotal());
     }, [cartItems, calculateCartTotal]);
+    
+    // Automatically request location when component mounts
+    useEffect(() => {
+        if (cartItems.length > 0 && session?.user) {
+            // Only request location if we have items in cart and user is logged in
+            requestLocationPermission().catch(error => {
+                console.log("Initial location request failed:", error.message);
+                // Don't show alert on initial load, just set the error state
+                setLocationError(error.message);
+            });
+        }
+    }, [cartItems.length, session]);
     
     // Fetch user addresses
     const fetchUserInfo = async () => {
@@ -156,17 +191,37 @@ export default function Cart() {
 
         // Check if we have valid GPS location
         if (userLocation.latitude === 0 && userLocation.longitude === 0) {
+            setAlertType("warning");
+            setAlertMessage("We need your location for delivery. Please allow location access.");
+            setShowAlert(true);
+            
             try {
-                await requestLocationPermission();
+                const location = await requestLocationPermission();
+                
+                // Double-check if we got valid coordinates
+                if (location.latitude === 0 && location.longitude === 0) {
+                    setAlertType("error");
+                    setAlertMessage("Could not get valid location coordinates. Please try again.");
+                    setShowAlert(true);
+                    setTimeout(() => setShowAlert(false), 5000);
+                    return;
+                }
             } catch (error) {
                 setAlertType("error");
                 setAlertMessage("Location permission is required for delivery. Please enable location access and try again.");
                 setShowAlert(true);
-                setTimeout(() => {
-                    setShowAlert(false);
-                }, 5000);
+                setTimeout(() => setShowAlert(false), 5000);
                 return;
             }
+        }
+        
+        // Validate GPS coordinates are not at null island (0,0)
+        if (userLocation.latitude === 0 && userLocation.longitude === 0) {
+            setAlertType("error");
+            setAlertMessage("Invalid location detected. Please refresh and allow location access.");
+            setShowAlert(true);
+            setTimeout(() => setShowAlert(false), 5000);
+            return;
         }
         
         // Check if all products belong to the same restaurant
@@ -589,6 +644,43 @@ export default function Cart() {
                                                                 </button>
                                                             </div>
                                                         )}
+                                                    </div>
+                                                )}
+                                            </div>
+                                            
+                                            {/* Location Status */}
+                                            <div className="mb-4">
+                                                <div className="flex items-center justify-between">
+                                                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                                        Delivery Location
+                                                    </p>
+                                                    <button
+                                                        type="button"
+                                                        onClick={requestLocationPermission}
+                                                        className="text-xs text-red-500 hover:text-red-600"
+                                                    >
+                                                        {userLocation.latitude === 0 && userLocation.longitude === 0
+                                                            ? "Share Location"
+                                                            : "Update Location"}
+                                                    </button>
+                                                </div>
+                                                
+                                                {locationError ? (
+                                                    <div className="p-2 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md text-sm text-red-700 dark:text-red-300 flex items-center">
+                                                        <AlertTriangle className="h-4 w-4 mr-2 flex-shrink-0" />
+                                                        <p>{locationError}</p>
+                                                    </div>
+                                                ) : userLocation.latitude === 0 && userLocation.longitude === 0 ? (
+                                                    <div className="p-2 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md text-sm text-yellow-700 dark:text-yellow-300 flex items-center">
+                                                        <AlertTriangle className="h-4 w-4 mr-2 flex-shrink-0" />
+                                                        <p>Please share your location for delivery.</p>
+                                                    </div>
+                                                ) : (
+                                                    <div className="p-2 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-md text-sm text-green-700 dark:text-green-300 flex items-center">
+                                                        <svg xmlns="http://www.w3.org/2000/svg" className="h-4 w-4 mr-2 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                                                        </svg>
+                                                        <p>Location successfully captured</p>
                                                     </div>
                                                 )}
                                             </div>
