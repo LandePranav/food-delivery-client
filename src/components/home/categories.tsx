@@ -45,10 +45,10 @@ export function Categories({ categories = [] }: CategoriesProps) {
           <button
             key={index}
             onClick={() => handleCategoryClick(category.name)}
-            className="flex flex-col items-center justify-center text-nowrap min-w-[70px] py-2 px-3 bg-white dark:bg-[#1E1E1E] rounded-xl shadow-sm border border-gray-100 dark:border-[#333333] hover:border-red-500 dark:hover:border-red-500 transition-colors"
+            className="flex flex-col items-center justify-center min-w-[70px] w-auto py-2 px-3 bg-white dark:bg-[#1E1E1E] rounded-xl shadow-sm border border-gray-100 dark:border-[#333333] hover:border-red-500 dark:hover:border-red-500 transition-colors"
           >
             <span className="text-2xl mb-1">{category.emoji}</span>
-            <span className="text-xs text-gray-700 dark:text-gray-300">{category.name}</span>
+            <p className="text-xs text-gray-700 dark:text-gray-300 truncate max-w-full overflow-hidden">{category.name}</p>
           </button>
         ))}
       </div>
