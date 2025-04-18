@@ -180,12 +180,12 @@ export default function SpecialDishesCarousel() {
   }
 
   // Handle touch events for manual swiping
-  const handleTouchStart = (e: React.TouchEvent, dishId: string) => {
+  const handleTouchStart = (e: React.TouchEvent) => {
     setTouchStartX(e.touches[0].clientX)
     setIsSwiping(true)
   }
 
-  const handleTouchMove = (e: React.TouchEvent, dishId: string) => {
+  const handleTouchMove = () => {
     if (!isSwiping) return
   }
 
@@ -298,8 +298,8 @@ export default function SpecialDishesCarousel() {
                               width: `${dish.imageUrls.length * 100}%`,
                               transform: `translateX(-${(currentImageIndices[dish.id] || 0) * 100 / dish.imageUrls.length}%)`
                             }}
-                            onTouchStart={(e) => handleTouchStart(e, dish.id)}
-                            onTouchMove={(e) => handleTouchMove(e, dish.id)}
+                            onTouchStart={handleTouchStart}
+                            onTouchMove={handleTouchMove}
                             onTouchEnd={(e) => handleTouchEnd(e, dish.id)}
                           >
                             {dish.imageUrls.map((url, index) => (
