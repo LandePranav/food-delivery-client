@@ -32,7 +32,7 @@ export async function POST(request) {
         if (event === "payment.authorized") {
             // Payment is authorized but not yet captured
             await prisma.order.update({
-                where: { orderId: eventPayload.order?.entity.id },
+                where: { orderId: eventPayload.payment?.entity?.order_id },
                 data: {
                     paymentStatus: "authorized",
                     paymentId: eventPayload.payment?.entity.id
@@ -42,7 +42,7 @@ export async function POST(request) {
         else if (event === "payment.captured") {
             // Payment is captured (completed)
             await prisma.order.update({
-                where: { orderId: eventPayload.order?.entity.id },
+                where: { orderId: eventPayload.payment?.entity?.order_id },
                 data: {
                     paymentStatus: "completed",
                     paymentId: eventPayload.payment?.entity.id
