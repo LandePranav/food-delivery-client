@@ -1,13 +1,14 @@
 "use client"
 
-import Image from "next/image"
-import { ChevronLeft, ChevronRight, ShoppingCart} from "lucide-react"
+// import Image from "next/image"
+import { ChevronLeft, ChevronRight, ShoppingCart, UtensilsCrossed } from "lucide-react"
 import {useState, useEffect, useContext } from "react"
 import api from "@/lib/axios"
 import { context } from "@/context/contextProvider"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { motion } from "framer-motion"
+import { CldImage } from "next-cloudinary"
 
 interface Dish {
   id: string
@@ -30,6 +31,9 @@ export default function SpecialDishesCarousel() {
   const { setCartItems } = useContext(context)
   const [sellerNames, setSellerNames] = useState<Record<string, string>>({})
   const [vibratingItemId, setVibratingItemId] = useState<string | null>(null)
+  const [currentImageIndices, setCurrentImageIndices] = useState<Record<string, number>>({})
+  const [touchStartX, setTouchStartX] = useState(0)
+  const [isSwiping, setIsSwiping] = useState(false)
 
   // Number of dishes to display at once based on screen size
   const [itemsToShow, setItemsToShow] = useState(1)
@@ -45,6 +49,13 @@ export default function SpecialDishesCarousel() {
             console.log("Special dishes data:", response.data) // Debug
             const filteredDishes = response.data.filter((dish: Dish) => dish.isFeatured === true)
             setSpecialDishes(filteredDishes)
+            
+            // Initialize image indices for each dish
+            const initialIndices: Record<string, number> = {}
+            filteredDishes.forEach((dish: Dish) => {
+              initialIndices[dish.id] = 0
+            })
+            setCurrentImageIndices(initialIndices)
             
             // Get unique seller IDs
             const sellerIds = [...new Set(response.data
@@ -106,6 +117,28 @@ export default function SpecialDishesCarousel() {
     return () => window.removeEventListener("resize", updateItemsToShow)
   }, [])
 
+  // Image slideshow effect
+  useEffect(() => {
+    const intervalIds: NodeJS.Timeout[] = []
+    
+    specialDishes.forEach((dish) => {
+      if (dish.imageUrls && dish.imageUrls.length > 1 && !isSwiping) {
+        const intervalId = setInterval(() => {
+          setCurrentImageIndices((prevIndices) => ({
+            ...prevIndices,
+            [dish.id]: ((prevIndices[dish.id] || 0) + 1) % dish.imageUrls.length
+          }))
+        }, 5000)
+        
+        intervalIds.push(intervalId)
+      }
+    })
+    
+    return () => {
+      intervalIds.forEach(id => clearInterval(id))
+    }
+  }, [specialDishes, isSwiping])
+
   const prevSlide = () => {
     setCurrentIndex((prevIndex) => 
       prevIndex === 0 ? Math.max(0, specialDishes.length - itemsToShow) : prevIndex - 1
@@ -134,15 +167,76 @@ export default function SpecialDishesCarousel() {
 
   // Helper function to get the best available image URL
   const getImageUrl = (item: Dish) => {
-    // if (item?.imageUrl) return item?.imageUrl
-    // if (item.image) return item.image
-    if (item.imageUrls && item.imageUrls.length > 0) return item.imageUrls[0]
+    if (item.imageUrls && item.imageUrls.length > 0) {
+      const currentIndex = currentImageIndices[item.id] || 0
+      return item.imageUrls[currentIndex]
+    }
     return "/placeholder.jpg"
   }
 
   const getSellerName = (sellerId?: string) => {
     if (!sellerId) return "Unknown Restaurant"
     return sellerNames[sellerId] || "Unknown Restaurant"
+  }
+
+  // Handle touch events for manual swiping
+  const handleTouchStart = (e: React.TouchEvent, dishId: string) => {
+    setTouchStartX(e.touches[0].clientX)
+    setIsSwiping(true)
+  }
+
+  const handleTouchMove = (e: React.TouchEvent, dishId: string) => {
+    if (!isSwiping) return
+  }
+
+  const handleTouchEnd = (e: React.TouchEvent, dishId: string) => {
+    if (!isSwiping) return
+    
+    const dish = specialDishes.find(d => d.id === dishId)
+    if (!dish || !dish.imageUrls || dish.imageUrls.length <= 1) return
+    
+    const touchEndX = e.changedTouches[0].clientX
+    const diffX = touchEndX - touchStartX
+    
+    // Swipe threshold
+    if (Math.abs(diffX) > 50) {
+      if (diffX > 0) {
+        // Swipe right - go to previous image
+        setCurrentImageIndices(prev => ({
+          ...prev,
+          [dishId]: prev[dishId] === 0 ? dish.imageUrls.length - 1 : prev[dishId] - 1
+        }))
+      } else {
+        // Swipe left - go to next image
+        setCurrentImageIndices(prev => ({
+          ...prev,
+          [dishId]: (prev[dishId] + 1) % dish.imageUrls.length
+        }))
+      }
+    }
+    
+    setIsSwiping(false)
+  }
+
+  // Manual navigation functions
+  const goToNextSlide = (dishId: string) => {
+    const dish = specialDishes.find(d => d.id === dishId)
+    if (!dish || !dish.imageUrls || dish.imageUrls.length <= 1) return
+    
+    setCurrentImageIndices(prev => ({
+      ...prev,
+      [dishId]: (prev[dishId] + 1) % dish.imageUrls.length
+    }))
+  }
+
+  const goToPrevSlide = (dishId: string) => {
+    const dish = specialDishes.find(d => d.id === dishId)
+    if (!dish || !dish.imageUrls || dish.imageUrls.length <= 1) return
+    
+    setCurrentImageIndices(prev => ({
+      ...prev,
+      [dishId]: prev[dishId] === 0 ? dish.imageUrls.length - 1 : prev[dishId] - 1
+    }))
   }
 
   if (loading) {
@@ -195,19 +289,74 @@ export default function SpecialDishesCarousel() {
                   style={{ width: `${100 / itemsToShow}%` }}
                 >
                   <div className="overflow-hidden border-none shadow-md rounded-2xl dark:bg-[#1E1E1E] dark:text-white bg-white h-full flex flex-col">
-                    <div className="relative h-48 w-full">
-                      {getImageUrl(dish) !== "/placeholder.jpg" ? (
-                        <Image 
-                          src={getImageUrl(dish)}
-                          alt={dish.name}
-                          fill
-                          sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                          className="object-cover"
-                          priority={currentIndex === 0}
-                        />
+                    <div className="relative h-48 w-full overflow-hidden">
+                      {dish.imageUrls && dish.imageUrls.length > 0 ? (
+                        <>
+                          <div 
+                            className="flex transition-transform duration-500 ease-in-out h-full"
+                            style={{ 
+                              width: `${dish.imageUrls.length * 100}%`,
+                              transform: `translateX(-${(currentImageIndices[dish.id] || 0) * 100 / dish.imageUrls.length}%)`
+                            }}
+                            onTouchStart={(e) => handleTouchStart(e, dish.id)}
+                            onTouchMove={(e) => handleTouchMove(e, dish.id)}
+                            onTouchEnd={(e) => handleTouchEnd(e, dish.id)}
+                          >
+                            {dish.imageUrls.map((url, index) => (
+                              <div key={index} className="relative h-full" style={{ width: `${100 / dish.imageUrls.length}%` }}>
+                                <CldImage 
+                                  src={url} 
+                                  alt={`${dish.name} - image ${index + 1}`} 
+                                  fill
+                                  sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                                  className="object-cover"
+                                />
+                              </div>
+                            ))}
+                          </div>
+                          
+                          {dish.imageUrls.length > 1 && (
+                            <>
+                              {/* Navigation arrows */}
+                              <button 
+                                onClick={() => goToPrevSlide(dish.id)}
+                                className="absolute left-1 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-30 hover:bg-opacity-50 text-white rounded-full p-1 z-10"
+                                aria-label="Previous image"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M15 18l-6-6 6-6" />
+                                </svg>
+                              </button>
+                              
+                              <button 
+                                onClick={() => goToNextSlide(dish.id)}
+                                className="absolute right-1 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-30 hover:bg-opacity-50 text-white rounded-full p-1 z-10"
+                                aria-label="Next image"
+                              >
+                                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                                  <path d="M9 18l6-6-6-6" />
+                                </svg>
+                              </button>
+                              
+                              {/* Dots indicator */}
+                              <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1 z-10">
+                                {dish.imageUrls.map((_, index) => (
+                                  <button 
+                                    key={index}
+                                    onClick={() => setCurrentImageIndices(prev => ({...prev, [dish.id]: index}))}
+                                    className={`h-1.5 rounded-full transition-all duration-300 ${
+                                      index === (currentImageIndices[dish.id] || 0) ? 'w-3 bg-white' : 'w-1.5 bg-white/50 hover:bg-white/70'
+                                    }`}
+                                    aria-label={`Go to image ${index + 1}`}
+                                  />
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </>
                       ) : (
                         <div className="flex items-center justify-center h-full bg-gray-100 dark:bg-[#262626]">
-                          <ShoppingCart className="h-10 w-10 text-gray-400 dark:text-gray-600" />
+                          <UtensilsCrossed className="w-14 h-14 text-gray-400 dark:text-gray-600" />
                         </div>
                       )}
                       {dish.price > 15 && (

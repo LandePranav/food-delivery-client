@@ -1,0 +1,3 @@
+-- AlterTable
+ALTER TABLE "products" ADD COLUMN     "addedCost" INTEGER NOT NULL DEFAULT 0,
+ADD COLUMN     "priority" INTEGER NOT NULL DEFAULT 0;

@@ -2,7 +2,7 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Home, Menu, ShoppingCart, User } from "lucide-react"
+import { Home, Menu, ShoppingCart, User, Store } from "lucide-react"
 import { useContext } from "react"
 import { context } from "@/context/contextProvider"
 
@@ -33,6 +33,14 @@ export function BottomNavigation() {
       >
         <Menu className="h-6 w-6" />
         <span className="text-xs mt-1">Menu</span>
+      </Link>
+      
+      <Link 
+        href="/restaurants" 
+        className={`flex flex-col items-center justify-center w-full h-full ${isActive('/restaurants') ? 'text-red-500' : 'text-gray-500 dark:text-gray-400'}`}
+      >
+        <Store className="h-6 w-6" />
+        <span className="text-xs mt-1">Restaurant</span>
       </Link>
       
       <Link 

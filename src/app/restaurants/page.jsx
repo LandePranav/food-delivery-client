@@ -3,7 +3,7 @@
 import { useState, useEffect, useContext } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { Star, MapPin, Search, Filter } from "lucide-react"
+import { Star, MapPin, Search, Filter, Store } from "lucide-react"
 import { PageLayout } from "@/components/layout/page-layout"
 import api from "@/lib/axios"
 import { context } from "@/context/contextProvider"
@@ -72,7 +72,7 @@ export default function RestaurantsPage() {
   const getImageUrl = (restaurant) => {
     if (restaurant.profile) return restaurant.profile
     if (restaurant.imageUrl) return restaurant.imageUrl
-    return "/placeholder.jpg"
+    return ""
   }
 
   return (
@@ -81,7 +81,7 @@ export default function RestaurantsPage() {
         <h1 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white">All Restaurants</h1>
         
         {/* Search and Filter Bar */}
-        <div className="bg-white dark:bg-[#1E1E1E] rounded-lg p-4 mb-6 shadow-sm">
+        <div className="bg-white dark:bg-[#1E1E1E] rounded-lg p-0.5 mb-6 shadow-sm">
           <div className="flex flex-col sm:flex-row gap-4">
             <div className="relative flex-1">
               <input
@@ -93,10 +93,10 @@ export default function RestaurantsPage() {
               />
               <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-5 w-5 text-gray-400" />
             </div>
-            <button className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 dark:bg-[#292929] text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-[#333333]">
+            {/* <button className="flex items-center justify-center gap-2 px-4 py-2 bg-gray-100 dark:bg-[#292929] text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-200 dark:hover:bg-[#333333]">
               <Filter className="h-4 w-4" />
               <span>Filter</span>
-            </button>
+            </button> */}
           </div>
         </div>
         
@@ -124,12 +124,20 @@ export default function RestaurantsPage() {
                 className="bg-white dark:bg-[#1E1E1E] rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow border border-gray-100 dark:border-[#333333]"
               >
                 <div className="relative h-48 w-full">
-                  <Image
-                    src={getImageUrl(restaurant)}
-                    alt={restaurant.restaurantName}
-                    fill
-                    className="object-cover"
-                  />
+                  {
+                    getImageUrl(restaurant) ? (
+                      <Image
+                        src={getImageUrl(restaurant)}
+                        alt={restaurant.restaurantName}
+                        fill
+                        className="object-cover"
+                      />
+                    ) : (
+                      <div className="flex items-center justify-center h-full bg-gray-100 dark:bg-[#262626]">
+                        <Store className="w-16 h-16 text-gray-400 dark:text-gray-600" />
+                      </div>
+                    )
+                  }
                   {restaurant.productCount > 0 && (
                     <div className="absolute top-3 right-3 bg-red-500 text-white text-xs px-2 py-1 rounded-full">
                       {restaurant.productCount} items

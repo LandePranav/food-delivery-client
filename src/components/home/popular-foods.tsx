@@ -10,6 +10,7 @@ import { context } from "@/context/contextProvider"
 import { motion } from "framer-motion"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
+import { CldImage } from "next-cloudinary"
 
 interface FoodItem {
   id: string
@@ -45,6 +46,9 @@ export default function PopularFoods({ items = [], limit = 4 }: PopularFoodsProp
   const [sellerNames, setSellerNames] = useState<Record<string, string>>({})
   const [sellers, setSellers] = useState<Seller[]>([])
   const [vibratingItemId, setVibratingItemId] = useState<string | null>(null)
+  const [currentImageIndices, setCurrentImageIndices] = useState<Record<string, number>>({})
+  const [isSwiping, setIsSwiping] = useState<Record<string, boolean>>({})
+  const [touchStartX, setTouchStartX] = useState<Record<string, number>>({})
   
   // Fetch sellers on component mount (only once)
   useEffect(() => {
@@ -97,6 +101,26 @@ export default function PopularFoods({ items = [], limit = 4 }: PopularFoodsProp
     }
   }, [items, limit])
 
+  // Image slideshow effect
+  useEffect(() => {
+    const intervalIds: Record<string, NodeJS.Timeout> = {};
+    
+    popularItems.forEach(item => {
+      if (item.imageUrls && item.imageUrls.length > 1 && !isSwiping[item.id]) {
+        intervalIds[item.id] = setInterval(() => {
+          setCurrentImageIndices(prev => ({
+            ...prev,
+            [item.id]: ((prev[item.id] || 0) + 1) % item.imageUrls!.length
+          }));
+        }, 5000);
+      }
+    });
+    
+    return () => {
+      Object.values(intervalIds).forEach(id => clearInterval(id));
+    };
+  }, [popularItems, isSwiping]);
+
   const handleAddToCart = (item: FoodItem) => {
     const cartItem = {
       id: item.id,
@@ -120,7 +144,7 @@ export default function PopularFoods({ items = [], limit = 4 }: PopularFoodsProp
   const getImageUrl = (item: FoodItem): string => {
     if (item.imageUrl) return item.imageUrl
     if (item.image) return item.image
-    if (item.imageUrls && item.imageUrls.length > 0) return item.imageUrls[0]
+    if (item.imageUrls && item.imageUrls.length > 0) return item.imageUrls[currentImageIndices[item.id] || 0]
     return "/placeholder.jpg"
   }
   
@@ -133,6 +157,59 @@ export default function PopularFoods({ items = [], limit = 4 }: PopularFoodsProp
   // Format price with rupee symbol
   const formatPrice = (price: number): string => {
     return `₹${price.toFixed(2)}`;
+  };
+
+  // Handle touch events for manual swiping
+  const handleTouchStart = (e: React.TouchEvent, itemId: string) => {
+    setTouchStartX({...touchStartX, [itemId]: e.touches[0].clientX});
+    setIsSwiping({...isSwiping, [itemId]: true});
+  };
+
+  const handleTouchMove = (e: React.TouchEvent, itemId: string, imageUrls?: string[]) => {
+    if (!isSwiping[itemId] || !imageUrls || imageUrls.length <= 1) return;
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent, itemId: string, imageUrls?: string[]) => {
+    if (!isSwiping[itemId] || !imageUrls || imageUrls.length <= 1) return;
+    
+    const touchEndX = e.changedTouches[0].clientX;
+    const diffX = touchEndX - (touchStartX[itemId] || 0);
+    
+    // Swipe threshold
+    if (Math.abs(diffX) > 50) {
+      if (diffX > 0) {
+        // Swipe right - go to previous image
+        setCurrentImageIndices(prev => ({
+          ...prev,
+          [itemId]: prev[itemId] === 0 ? imageUrls.length - 1 : (prev[itemId] || 0) - 1
+        }));
+      } else {
+        // Swipe left - go to next image
+        setCurrentImageIndices(prev => ({
+          ...prev,
+          [itemId]: ((prev[itemId] || 0) + 1) % imageUrls.length
+        }));
+      }
+    }
+    
+    setIsSwiping({...isSwiping, [itemId]: false});
+  };
+
+  // Manual navigation functions
+  const goToNextSlide = (itemId: string, imageUrls?: string[]) => {
+    if (!imageUrls || imageUrls.length <= 1) return;
+    setCurrentImageIndices(prev => ({
+      ...prev,
+      [itemId]: ((prev[itemId] || 0) + 1) % imageUrls.length
+    }));
+  };
+
+  const goToPrevSlide = (itemId: string, imageUrls?: string[]) => {
+    if (!imageUrls || imageUrls.length <= 1) return;
+    setCurrentImageIndices(prev => ({
+      ...prev,
+      [itemId]: prev[itemId] === 0 ? imageUrls.length - 1 : (prev[itemId] || 0) - 1
+    }));
   };
   
   return (
@@ -156,8 +233,72 @@ export default function PopularFoods({ items = [], limit = 4 }: PopularFoodsProp
           {popularItems.map((item) => (
             <div key={item.id} className="h-full">
               <div className="overflow-hidden border-none shadow-md rounded-2xl dark:bg-[#1E1E1E] dark:text-white bg-white h-full flex flex-col">
-                <div className="relative h-40 w-full">
-                  {getImageUrl(item) !== "/placeholder.jpg" ? (
+                <div className="relative h-40 w-full overflow-hidden">
+                  {item.imageUrls && item.imageUrls.length > 0 ? (
+                    <>
+                      <div 
+                        className="flex transition-transform duration-500 ease-in-out h-full"
+                        style={{ 
+                          width: `${item.imageUrls.length * 100}%`,
+                          transform: `translateX(-${((currentImageIndices[item.id] || 0) * 100) / item.imageUrls.length}%)`
+                        }}
+                        onTouchStart={(e) => handleTouchStart(e, item.id)}
+                        onTouchMove={(e) => handleTouchMove(e, item.id, item.imageUrls)}
+                        onTouchEnd={(e) => handleTouchEnd(e, item.id, item.imageUrls)}
+                      >
+                        {item.imageUrls.map((url, index) => (
+                          <div key={index} className="relative h-full" style={{ width: `${100 / item.imageUrls!.length}%` }}>
+                            <CldImage 
+                              src={url} 
+                              alt={`${item.name} - image ${index + 1}`} 
+                              fill
+                              sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                              className="object-cover"
+                            />
+                          </div>
+                        ))}
+                      </div>
+                      
+                      {item.imageUrls.length > 1 && (
+                        <>
+                          {/* Navigation arrows */}
+                          <button 
+                            onClick={() => goToPrevSlide(item.id, item.imageUrls)}
+                            className="absolute left-1 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-30 hover:bg-opacity-50 text-white rounded-full p-1 z-10"
+                            aria-label="Previous image"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M15 18l-6-6 6-6" />
+                            </svg>
+                          </button>
+                          
+                          <button 
+                            onClick={() => goToNextSlide(item.id, item.imageUrls)}
+                            className="absolute right-1 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-30 hover:bg-opacity-50 text-white rounded-full p-1 z-10"
+                            aria-label="Next image"
+                          >
+                            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                              <path d="M9 18l6-6-6-6" />
+                            </svg>
+                          </button>
+                          
+                          {/* Dots indicator */}
+                          <div className="absolute bottom-2 left-0 right-0 flex justify-center gap-1 z-10">
+                            {item.imageUrls.map((_, index) => (
+                              <button 
+                                key={index}
+                                onClick={() => setCurrentImageIndices({...currentImageIndices, [item.id]: index})}
+                                className={`h-1.5 rounded-full transition-all duration-300 ${
+                                  index === (currentImageIndices[item.id] || 0) ? 'w-3 bg-white' : 'w-1.5 bg-white/50 hover:bg-white/70'
+                                }`}
+                                aria-label={`Go to image ${index + 1}`}
+                              />
+                            ))}
+                          </div>
+                        </>
+                      )}
+                    </>
+                  ) : item.imageUrl || item.image ? (
                     <Image
                       src={getImageUrl(item)}
                       alt={item.name}

@@ -56,7 +56,7 @@ export async function POST(request) {
                     totalPrice: data.totalAmount,
                     deliveryAddress: data.address.trim(),
                     paymentStatus: "pending",
-                    deliveryStatus: "processing",
+                    deliveryStatus: "PROCESSING",
                     orderId: razorpayOrder.id, // Store Razorpay order ID
                     paymentId: null, // This will be updated when payment succeeds
                     gpsLocation: data.gpsLocation,

@@ -26,12 +26,12 @@ export async function POST(request) {
         const { event, payload: eventPayload } = payload;
         
         // console.log("Webhook received:", event);
-        // console.log("Payload: ", eventPayload);
+        console.log("Payload: ", eventPayload);
         
         // Handle different event types
         if (event === "payment.authorized") {
             // Payment is authorized but not yet captured
-            await prisma.order.updateMany({
+            await prisma.order.update({
                 where: { orderId: eventPayload.order?.entity.id },
                 data: {
                     paymentStatus: "authorized",
@@ -41,7 +41,7 @@ export async function POST(request) {
         } 
         else if (event === "payment.captured") {
             // Payment is captured (completed)
-            await prisma.order.updateMany({
+            await prisma.order.update({
                 where: { orderId: eventPayload.order?.entity.id },
                 data: {
                     paymentStatus: "completed",
@@ -51,7 +51,7 @@ export async function POST(request) {
         }
         else if (event === "payment.failed") {
             // Payment failed
-            await prisma.order.updateMany({
+            await prisma.order.update({
                 where: { orderId: eventPayload.order?.entity.id },
                 data: {
                     paymentStatus: "failed"

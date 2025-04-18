@@ -1,15 +1,15 @@
 "use client"
 
-import { useState, useEffect, useContext } from "react"
+import { useState, useEffect, useContext, use, useCallback, useMemo } from "react"
 import Image from "next/image"
-import { Star, Clock, MapPin, Phone, ShoppingCart } from "lucide-react"
+import { Star, Clock, MapPin, Phone, ShoppingCart, UtensilsCrossed, Store } from "lucide-react"
 import { PageLayout } from "@/components/layout/page-layout"
 import api from "@/lib/axios"
 import { context } from "@/context/contextProvider"
 import { motion } from "framer-motion"
 
 export default function RestaurantDetail({ params }) {
-  const { id } = params
+  const { id } = use(params)
   const [restaurant, setRestaurant] = useState(null)
   const [products, setProducts] = useState([])
   const [loading, setLoading] = useState(true)
@@ -17,7 +17,32 @@ export default function RestaurantDetail({ params }) {
   const [distance, setDistance] = useState(null)
   const [vibratingItemId, setVibratingItemId] = useState(null)
 
+  // Helper function to get the best available image URL - memoized to prevent recalculations
+  const getImageUrl = useCallback((item) => {
+    if (!item) return ""
+    if (item.imageUrl) return item.imageUrl
+    if (item.image) return item.image
+    if (item.imageUrls && item.imageUrls.length > 0) return item.imageUrls[0]
+    return ""
+  }, [])
+  
+  // Format price with rupee symbol - memoized
+  const formatPrice = useCallback((price) => {
+    return `₹${parseFloat(price).toFixed(2)}`;
+  }, []);
+
+  // Memoized function to calculate distance - won't change between renders
+  const calculateDistanceFromRestaurant = useCallback(() => {
+    if (!restaurant?.gpsLocation || !userLocation || !getDistanceFromUser) return null;
+    
+    const calculatedDistance = getDistanceFromUser(restaurant.gpsLocation);
+    return calculatedDistance;
+  }, [restaurant?.gpsLocation, userLocation, getDistanceFromUser]);
+
+  // Combined single useEffect for fetching restaurant data
   useEffect(() => {
+    if (!id) return;
+    
     const fetchRestaurantData = async () => {
       try {
         setLoading(true)
@@ -25,16 +50,7 @@ export default function RestaurantDetail({ params }) {
         // Fetch restaurant details
         const restaurantResponse = await api.get(`/sellers/${id}`)
         if (restaurantResponse.status === 200) {
-          const restaurantData = restaurantResponse.data
-          setRestaurant(restaurantData)
-          
-          // Calculate distance if GPS location is available
-          if (restaurantData.gpsLocation && userLocation) {
-            const calculatedDistance = getDistanceFromUser(restaurantData.gpsLocation)
-            if (calculatedDistance) {
-              setDistance(calculatedDistance)
-            }
-          }
+          setRestaurant(restaurantResponse.data)
         }
         
         // Fetch products from this restaurant
@@ -49,28 +65,19 @@ export default function RestaurantDetail({ params }) {
       }
     }
 
-    if (id) {
-      fetchRestaurantData()
-    }
-  }, [id, userLocation, getDistanceFromUser])
+    fetchRestaurantData()
+  }, [id]); // Only refetch when ID changes
 
-  // Recalculate distance if user location changes
+  // Separate useEffect for distance calculations
   useEffect(() => {
-    if (restaurant?.gpsLocation && userLocation) {
-      const calculatedDistance = getDistanceFromUser(restaurant.gpsLocation)
-      if (calculatedDistance) {
-        setDistance(calculatedDistance)
-      }
+    const newDistance = calculateDistanceFromRestaurant();
+    if (newDistance !== null) {
+      setDistance(newDistance);
     }
-  }, [restaurant, userLocation, getDistanceFromUser])
+  }, [calculateDistanceFromRestaurant]);
 
-  const handleAddToCart = (product, e) => {
-    // Prevent default form submission behavior and stop event propagation
-    if (e) {
-      e.preventDefault();
-      e.stopPropagation();
-    }
-    
+  // Optimized add to cart handler with useCallback to prevent recreation on render
+  const handleAddToCart = useCallback((product) => {    
     const item = {
       id: product.id,
       name: product.name,
@@ -79,25 +86,83 @@ export default function RestaurantDetail({ params }) {
       sellerId: product.sellerId
     };
     
+    // Add item to cart
     addToCart(item);
     
-    // Set the vibrating item ID to trigger animation
+    // Trigger vibration animation
     setVibratingItemId(product.id);
-    setTimeout(() => setVibratingItemId(null), 500);
-  }
+    
+    // Clear vibration after animation
+    const timeoutId = setTimeout(() => {
+      setVibratingItemId(null);
+    }, 500);
+    
+    // No return here since this isn't a cleanup function, it's an event handler
+  }, [addToCart, getImageUrl]);
 
-  // Helper function to get the best available image URL
-  const getImageUrl = (item) => {
-    if (item.imageUrl) return item.imageUrl
-    if (item.image) return item.image
-    if (item.imageUrls && item.imageUrls.length > 0) return item.imageUrls[0]
-    return "/placeholder.jpg"
-  }
-  
-  // Format price with rupee symbol
-  const formatPrice = (price) => {
-    return `₹${parseFloat(price).toFixed(2)}`;
-  };
+  // Memoized product cards to prevent re-renders
+  const productCards = useMemo(() => {
+    return products.map((product) => (
+      <div 
+        key={product.id}
+        className="bg-white dark:bg-[#1E1E1E] rounded-xl overflow-hidden shadow-sm border border-gray-100 dark:border-[#333333]"
+      >
+        <div className="flex items-center justify-center px-2">
+          <div className="relative h-24 w-24 flex-shrink-0 rounded-md items-center justify-center">
+            {
+              getImageUrl(product) ? (
+                <Image
+                  src={getImageUrl(product)}
+                  alt={product.name}
+                  fill
+                  className="object-cover"
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full rounded-md bg-gray-100 dark:bg-[#262626]">
+                  <UtensilsCrossed className="w-12 h-12 text-gray-400 dark:text-gray-600" />
+                </div>
+              )
+            }
+          </div>
+          
+          <div className="p-3 flex-1">
+            <h3 className="font-medium text-gray-900 dark:text-white">{product.name}</h3>
+            <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-1 mt-1">
+              {product.description || "No description available"}
+            </p>
+            
+            <div className="flex items-center justify-between mt-2">
+              <span className="font-semibold text-gray-900 dark:text-white">
+                {formatPrice(product.price)}
+              </span>
+              <motion.button
+                onClick={() => handleAddToCart(product)}
+                type="button"
+                className="bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-2 rounded-lg flex items-center"
+                animate={{
+                  rotate: vibratingItemId === product.id ? [0, -10, 10, -10, 10, 0] : 0,
+                  scale: vibratingItemId === product.id ? 1.15 : 1,
+                }}
+                transition={{
+                  rotate: {
+                    type: "tween",
+                    duration: 0.5,
+                  },
+                  scale: {
+                    type: "spring",
+                    stiffness: 300,
+                    damping: 10,
+                  }
+                }}
+              >
+                <ShoppingCart className="h-5 w-5 mr-1" />
+              </motion.button>
+            </div>
+          </div>
+        </div>
+      </div>
+    ));
+  }, [products, getImageUrl, formatPrice, handleAddToCart, vibratingItemId]);
 
   return (
     <PageLayout>
@@ -109,25 +174,25 @@ export default function RestaurantDetail({ params }) {
         <div className="container mx-auto">
           {/* Restaurant Cover */}
           <div className="relative h-40 md:h-56 w-full mb-6">
-            <Image
-              src={restaurant.imageUrl || restaurant.profile || "/placeholder.jpg"}
-              alt={restaurant.name}
-              fill
-              className="object-cover rounded-xl"
-            />
+            {
+              (restaurant.imageUrl || restaurant.profile) ? (
+                <Image
+                  src={restaurant.imageUrl || restaurant.profile}
+                  alt={restaurant.name}
+                  fill
+                  className="object-cover rounded-xl"
+                />
+              ) : (
+                <div className="flex items-center justify-center h-full rounded-xl pb-6 bg-gray-100 dark:bg-[#262626]">
+                  <Store className="w-12 h-12 text-gray-400 dark:text-gray-600" />
+                </div>
+              )
+            }
             <div className="absolute inset-0 bg-black opacity-40 rounded-xl"></div>
             <div className="absolute bottom-4 left-4 text-white">
               <h1 className="text-xl md:text-2xl font-bold mb-1">{restaurant.restaurantName || restaurant.name}</h1>
               <div className="flex items-center text-sm">
                 <span>{restaurant.specialty || "Various"}</span>
-                {/* Ratings commented out as requested */}
-                {/*
-                <span className="mx-2">•</span>
-                <div className="flex items-center">
-                  <Star className="h-4 w-4 fill-yellow-400 stroke-yellow-400 mr-1" />
-                  <span>{restaurant.rating || 4.5}</span>
-                </div>
-                */}
               </div>
             </div>
           </div>
@@ -158,70 +223,11 @@ export default function RestaurantDetail({ params }) {
           
           {products.length > 0 ? (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-10">
-              {products.map((product) => (
-                <div 
-                  key={product.id}
-                  className="bg-white dark:bg-[#1E1E1E] rounded-xl overflow-hidden shadow-sm border border-gray-100 dark:border-[#333333]"
-                >
-                  <div className="flex">
-                    <div className="relative h-24 w-24 flex-shrink-0">
-                      <Image
-                        src={getImageUrl(product)}
-                        alt={product.name}
-                        fill
-                        className="object-cover"
-                      />
-                    </div>
-                    
-                    <div className="p-3 flex-1">
-                      <h3 className="font-medium text-gray-900 dark:text-white">{product.name}</h3>
-                      {/* Ratings commented out as requested */}
-                      {/*
-                      <div className="flex items-center mt-1">
-                        <Star className="h-3 w-3 fill-yellow-400 stroke-yellow-400" />
-                        <span className="text-xs text-gray-600 dark:text-gray-400 ml-1">
-                          {product.rating || 4.5}
-                        </span>
-                      </div>
-                      */}
-                      <p className="text-sm text-gray-500 dark:text-gray-400 line-clamp-1 mt-1">
-                        {product.description || "No description available"}
-                      </p>
-                      
-                      <div className="flex items-center justify-between mt-2">
-                        <span className="font-semibold text-gray-900 dark:text-white">
-                          {formatPrice(product.price)}
-                        </span>
-                        {vibratingItemId === product.id ? (
-                          <motion.button
-                            onClick={(e) => handleAddToCart(product, e)}
-                            type="button"
-                            className="bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-2 rounded-lg flex items-center"
-                            animate={{
-                              x: [0, -4, 4, -4, 4, 0],
-                              transition: { duration: 0.5 }
-                            }}
-                          >
-                            <ShoppingCart className="h-3 w-3 mr-1" />
-                          </motion.button>
-                        ) : (
-                          <button
-                            onClick={(e) => handleAddToCart(product, e)}
-                            type="button"
-                            className="bg-red-500 hover:bg-red-600 text-white text-xs px-3 py-2 rounded-lg flex items-center"
-                          >
-                            <ShoppingCart className="h-3 w-3 mr-1" />
-                          </button>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
+              {productCards}
             </div>
           ) : (
             <div className="text-center py-12 bg-white dark:bg-[#1E1E1E] rounded-xl">
-              <p className="text-gray-500 dark:text-gray-400">No products available from this restaurant</p>
+              <p className="text-gray-500 dark:text-gray-400">No products available from this restaurant. <br /> <span className="text-gray-300 font-semibold">AT THIS MOMENT</span></p>
             </div>
           )}
         </div>

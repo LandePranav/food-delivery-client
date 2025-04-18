@@ -25,14 +25,18 @@ function MenuContent() {
   // Categories list
   const categories = [
     { name: "All", emoji: "🍽️" },
-    { name: "Burger", emoji: "🍔" },
-    { name: "Pizza", emoji: "🍕" },
-    { name: "Fries", emoji: "🍟" },
-    { name: "Drinks", emoji: "🥤" },
-    { name: "Salad", emoji: "🥗" },
-    { name: "Sushi", emoji: "🍣" },
-    { name: "Dessert", emoji: "🍰" },
-    { name: "Chicken", emoji: "🍗" },
+    { name: "Pure-Veg", emoji: "🥬" },
+    { name: "Non-Veg", emoji: "🍗" },
+    { name: "Specials", emoji: "✨" },
+    { name: "Breakfast", emoji: "🍳" },
+    { name: "Lunch", emoji: "🍱" },
+    { name: "Dinner", emoji: "🍽️" },
+    { name: "Drinks/Desserts", emoji: "🍰" },
+    { name: "Maharashtrian", emoji: "🫓" },
+    { name: "Chinese", emoji: "🥢" },
+    { name: "North", emoji: "🍲" },
+    { name: "South", emoji: "🥘" },
+    { name: "Other", emoji: "🍴" },
   ]
 
   // Price filter options

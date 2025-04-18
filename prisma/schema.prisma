@@ -92,27 +92,29 @@ model Product {
   imageUrls   String[]
   categories  String[]
   isFeatured  Boolean  @default(false)
+  addedCost   Int      @default(0)
+  priority    Int      @default(0)
   seller      Seller   @relation(fields: [sellerId], references: [id])
 
   @@map("products")
 }
 
 model Order {
-  id              String   @id @unique @default(uuid())
+  id              String          @id @unique @default(uuid())
   userId          String
   sellerId        String
   totalPrice      Int?
   deliveryAddress String
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
-  deliveryStatus  DeliveryStatus? @default(PROCESSING)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
   paymentId       String?
   paymentStatus   String?
   productList     Json
   gpsLocation     Json?
   orderId         String
-  seller          Seller   @relation(fields: [sellerId], references: [id])
-  user            User     @relation(fields: [userId], references: [id])
+  deliveryStatus  DeliveryStatus? @default(PROCESSING)
+  seller          Seller          @relation(fields: [sellerId], references: [id])
+  user            User            @relation(fields: [userId], references: [id])
 
   @@map("orders")
 }
@@ -123,4 +125,3 @@ enum DeliveryStatus {
   DELIVERED
   CANCELLED
 }
-

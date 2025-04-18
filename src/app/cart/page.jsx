@@ -13,9 +13,10 @@ import { useRouter } from "next/navigation";
 import { PageLayout } from "@/components/layout/page-layout";
 import { LockIcon } from "lucide-react";
 import Link from "next/link";
-import { ShoppingCart, Trash, Lock, Plus, Minus, AlertTriangle } from "lucide-react";
+import { ShoppingCart, Trash, Lock, Plus, Minus, AlertTriangle, UtensilsCrossed } from "lucide-react";
 import Image from "next/image";
 import api from "@/lib/axios";
+import { CldImage } from "next-cloudinary";
 
 export default function Cart() {
     const {cartItems, setCartItems, addToCart, removeFromCart, removeItemCompletely, calculateCartTotal} = useContext(context);
@@ -26,6 +27,7 @@ export default function Cart() {
     const [alertMessage, setAlertMessage] = useState("");
     const [alertType, setAlertType] = useState("success");
     const router = useRouter();
+    const [deliveryCharge, setDeliveryCharge] = useState(0);
     const [formData, setFormData] = useState({
         name: "",
         email: "",
@@ -40,6 +42,14 @@ export default function Cart() {
 
     // Calculate total quantity of items in cart
     const totalCartItems = cartItems.reduce((total, item) => total + (item.quantity || 1), 0);
+
+    useEffect(() => {
+        const fetchDeliveryCharge = async () => {
+            const response = await api.get('/cart');
+            setDeliveryCharge(response.data.deliveryCharge);
+        };
+        fetchDeliveryCharge();
+    }, []);
 
     // Get user's current location
     const requestLocationPermission = () => {
@@ -215,7 +225,7 @@ export default function Cart() {
                 address: deliveryAddress,
                 items: cartItems,
                 userId: session.user.id,
-                totalAmount: totalAmount,
+                totalAmount: totalAmount + deliveryCharge,
                 gpsLocation: userLocation
             };
             
@@ -260,7 +270,10 @@ export default function Cart() {
                 },
                 notes: {
                     address: deliveryAddress,
-                    gpsLocation: userLocation
+                    gpsLocation: userLocation,
+                    deliveryCharge: deliveryCharge,
+                    contact: formData.phone,
+                    sellerId: cartItems[0].sellerId,
                 },
                 theme: {
                     color: "#000000",
@@ -328,7 +341,7 @@ export default function Cart() {
         if (item.imageUrl) return item.imageUrl;
         if (item.image) return item.image;
         if (item.imageUrls && item.imageUrls.length > 0) return item.imageUrls[0];
-        return "/placeholder.jpg";
+        return ;
     }
 
     // Format price with rupee symbol
@@ -374,20 +387,29 @@ export default function Cart() {
                     {/* Cart Items */}
                     <div className="lg:w-2/3">
                         <div className="bg-white dark:bg-[#1E1E1E] rounded-lg shadow overflow-hidden">
-                            <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+                            <div className="p-4 border-b border-gray-200 dark:border-gray-800">
                                 <h2 className="font-semibold text-gray-900 dark:text-white">Items ({totalCartItems})</h2>
                             </div>
                             
-                            <div className="divide-y divide-gray-200 dark:divide-gray-700">
+                            <div className="divide-y divide-gray-200 dark:divide-gray-800">
                                 {cartItems.map((item, index) => (
                                     <div key={`${item.id}-${index}`} className="flex items-center p-4">
                                         <div className="relative h-16 w-16 flex-shrink-0">
-                                            <Image
-                                                src={getImageUrl(item)}
-                                                alt={item.name}
-                                                fill
-                                                className="object-cover rounded-md"
-                                            />
+                                            {item.image ? (
+                                                <CldImage
+                                                    src={item.image}
+                                                    alt={item.name}
+                                                    width={64}
+                                                    height={64}
+                                                    crop="fill"
+                                                    gravity="auto"
+                                                    className="object-cover rounded-md absolute inset-0"
+                                                />
+                                            ) : (
+                                                <div className="flex items-center rounded-md justify-center h-full bg-gray-100 dark:bg-[#262626]">
+                                                    <UtensilsCrossed className="w-8 h-8 text-gray-400 dark:text-gray-600" />
+                                                </div>
+                                            )}
                                         </div>
                                         
                                         <div className="ml-4 flex-1">
@@ -425,9 +447,19 @@ export default function Cart() {
                                 ))}
                             </div>
                             
-                            <div className="p-4 bg-gray-50 dark:bg-[#292929] flex justify-between items-center">
-                                <span className="font-medium text-gray-900 dark:text-white">Total</span>
-                                <span className="font-bold text-gray-900 dark:text-white">{formatPrice(totalAmount)}</span>
+                            <div className="p-4 bg-gray-50 dark:bg-[#292929]">
+                                <div className="flex justify-between items-center mb-2">
+                                    <span className="text-gray-600 dark:text-gray-400">Subtotal</span>
+                                    <span className="font-medium text-gray-900 dark:text-white">{formatPrice(totalAmount)}</span>
+                                </div>
+                                <div className="flex justify-between items-center mb-2">
+                                    <span className="text-gray-600 dark:text-gray-400">Delivery Fee</span>
+                                    <span className="font-normal text-sm text-gray-900 dark:text-white">+ {formatPrice(deliveryCharge)}</span>
+                                </div>
+                                <div className="flex justify-between items-center pt-2 border-t border-gray-200 dark:border-gray-700">
+                                    <span className="font-medium text-gray-900 dark:text-white">Total</span>
+                                    <span className="font-bold text-gray-900 dark:text-white">{formatPrice(totalAmount + deliveryCharge)}</span>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -575,7 +607,7 @@ export default function Cart() {
                                                     : 'bg-red-500 hover:bg-red-600 text-white'
                                             }`}
                                         >
-                                            {`Checkout ${formatPrice(totalAmount)}`}
+                                            {`Checkout ${formatPrice(totalAmount + deliveryCharge)}`}
                                         </button>
 
                                     ) : (

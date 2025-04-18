@@ -128,11 +128,15 @@ export default function Profile() {
                                                 {new Date(order.createdAt).toLocaleDateString()}
                                             </p>
                                             <span className={`px-2 py-1 rounded-full text-xs ${
-                                                order.deliveryStatus === "delivered" 
+                                                order.deliveryStatus === "DELIVERED" 
                                                     ? "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400" 
+                                                    : order.deliveryStatus === "ON_THE_WAY"
+                                                    ? "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-400"
+                                                    : order.deliveryStatus === "CANCELLED"
+                                                    ? "bg-red-100 dark:bg-red-900/30 text-red-700 dark:text-red-400"
                                                     : "bg-yellow-100 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-400"
                                             }`}>
-                                                {order.deliveryStatus || "Processing"}
+                                                {order.deliveryStatus || "PROCESSING"}
                                             </span>
                                         </div>
                                     </div>
