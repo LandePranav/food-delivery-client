@@ -102,9 +102,9 @@ export default function NearbyRestaurants({ restaurants = [] }: NearbyRestaurant
                 }
               })
               
-              // Filter restaurants within 7.5km range
+              // Filter restaurants within 5km range
               const nearbyRestaurants = formattedRestaurants.filter(restaurant => 
-                restaurant.calculatedDistance !== null && restaurant.calculatedDistance <= 7.5
+                restaurant.calculatedDistance !== null && restaurant.calculatedDistance <= 5
               )
               
               // Sort by distance if calculated
@@ -164,7 +164,7 @@ export default function NearbyRestaurants({ restaurants = [] }: NearbyRestaurant
             <Store className="h-10 w-10 text-gray-400" />
             <p className="text-gray-500 dark:text-gray-400">
               {userLocation 
-                ? "No restaurants available within 7.5km of your location"
+                ? "No restaurants available within 5km of your location"
                 : "Please enable location access to see nearby restaurants"}
             </p>
           </div>

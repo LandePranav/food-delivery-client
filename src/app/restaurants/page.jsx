@@ -37,9 +37,9 @@ export default function RestaurantsPage() {
             }
           })
           
-          // Filter restaurants within 7.5km range
+          // Filter restaurants within 5km range
           formattedRestaurants = formattedRestaurants.filter(restaurant => 
-            restaurant.calculatedDistance !== null && restaurant.calculatedDistance <= 7.5
+            restaurant.calculatedDistance !== null && restaurant.calculatedDistance <= 5
           )
           
           // Sort by distance if available
@@ -111,7 +111,7 @@ export default function RestaurantsPage() {
               {searchTerm 
                 ? "No restaurants match your search" 
                 : userLocation 
-                  ? "No restaurants available within 7.5km of your location"
+                  ? "No restaurants available within 5km of your location"
                   : "Please enable location access to see nearby restaurants"}
             </p>
           </div>

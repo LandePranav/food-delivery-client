@@ -5,10 +5,10 @@ import { ChevronLeft, ChevronRight, ShoppingCart, UtensilsCrossed } from "lucide
 import {useState, useEffect, useContext } from "react"
 import api from "@/lib/axios"
 import { context } from "@/context/contextProvider"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { motion } from "framer-motion"
 import { CldImage } from "next-cloudinary"
+import { useRouter } from "next/navigation"
 
 interface Dish {
   id: string
@@ -25,6 +25,7 @@ interface Dish {
 
 
 export default function SpecialDishesCarousel() {
+  const router = useRouter()
   const [specialDishes, setSpecialDishes] = useState<Dish[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -34,6 +35,7 @@ export default function SpecialDishesCarousel() {
   const [currentImageIndices, setCurrentImageIndices] = useState<Record<string, number>>({})
   const [touchStartX, setTouchStartX] = useState(0)
   const [isSwiping, setIsSwiping] = useState(false)
+  const [slideIntervals, setSlideIntervals] = useState<Record<string, number>>({})
 
   // Number of dishes to display at once based on screen size
   const [itemsToShow, setItemsToShow] = useState(1)
@@ -52,10 +54,16 @@ export default function SpecialDishesCarousel() {
             
             // Initialize image indices for each dish
             const initialIndices: Record<string, number> = {}
+            const initialIntervals: Record<string, number> = {}
+            
             filteredDishes.forEach((dish: Dish) => {
               initialIndices[dish.id] = 0
+              // Generate random interval between 5000 and 10000 ms (5-10 seconds)
+              initialIntervals[dish.id] = Math.floor(Math.random() * 5000) + 5000
             })
+            
             setCurrentImageIndices(initialIndices)
+            setSlideIntervals(initialIntervals)
             
             // Get unique seller IDs
             const sellerIds = [...new Set(response.data
@@ -123,12 +131,13 @@ export default function SpecialDishesCarousel() {
     
     specialDishes.forEach((dish) => {
       if (dish.imageUrls && dish.imageUrls.length > 1 && !isSwiping) {
+        const interval = slideIntervals[dish.id] || 5000
         const intervalId = setInterval(() => {
           setCurrentImageIndices((prevIndices) => ({
             ...prevIndices,
             [dish.id]: ((prevIndices[dish.id] || 0) + 1) % dish.imageUrls.length
           }))
-        }, 5000)
+        }, interval)
         
         intervalIds.push(intervalId)
       }
@@ -137,7 +146,7 @@ export default function SpecialDishesCarousel() {
     return () => {
       intervalIds.forEach(id => clearInterval(id))
     }
-  }, [specialDishes, isSwiping])
+  }, [specialDishes, isSwiping, slideIntervals])
 
   const prevSlide = () => {
     setCurrentIndex((prevIndex) => 
@@ -239,6 +248,11 @@ export default function SpecialDishesCarousel() {
     }))
   }
 
+  // Function to navigate to product detail page
+  const navigateToProductDetail = (id: string) => {
+    router.push(`/menu/${id}`)
+  }
+
   if (loading) {
     return (
       <div className="my-6 px-4">
@@ -270,36 +284,55 @@ export default function SpecialDishesCarousel() {
   }
 
   return (
-    <div className="my-6 px-4">
-      <div className="container mx-auto">
-        <div className="flex justify-between items-center mb-3">
-          <h2 className="text-lg font-bold text-gray-800 dark:text-white">Special Dishes</h2>
+    <div className="my-6 md:my-8">
+      <div className="flex justify-between items-center mb-3">
+        <h2 className="text-lg font-bold text-gray-800 dark:text-white">Featured Special Dishes</h2>
+      </div>
+      
+      {loading ? (
+        <div className="flex justify-center py-8 bg-white dark:bg-[#1E1E1E] rounded-xl shadow-sm">
+          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-orange-500"></div>
         </div>
-
+      ) : specialDishes.length > 0 ? (
         <div className="relative">
-          <div className="overflow-hidden rounded-xl">
-            <div 
-              className="flex transition-transform duration-500 ease-in-out"
-              style={{ transform: `translateX(-${currentIndex * (100 / itemsToShow)}%)` }}
+          {/* Previous slide button */}
+          <button 
+            onClick={prevSlide}
+            className="absolute -left-3 top-1/2 -translate-y-1/2 z-10 bg-white dark:bg-[#262626] shadow-md p-1.5 rounded-full flex items-center justify-center hover:bg-gray-50 dark:hover:bg-[#333333] border border-gray-200 dark:border-[#444444]"
+            aria-label="Previous slide"
+          >
+            <ChevronLeft className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+          </button>
+          
+          {/* Carousel */}
+          <div className="overflow-hidden my-2">
+            <div className="flex transition-transform duration-500 ease-in-out"
+              style={{
+                transform: `translateX(${-currentIndex * (100 / itemsToShow)}%)`,
+                width: `${specialDishes.length * (100 / itemsToShow)}%`
+              }}
             >
               {specialDishes.map((dish) => (
                 <div 
                   key={dish.id} 
-                  className="flex-none p-2"
-                  style={{ width: `${100 / itemsToShow}%` }}
+                  className="flex-shrink-0 px-2" 
+                  style={{ width: `${100 / specialDishes.length * itemsToShow}%` }}
                 >
-                  <div className="overflow-hidden border-none shadow-md rounded-2xl dark:bg-[#1E1E1E] dark:text-white bg-white h-full flex flex-col">
-                    <div className="relative h-48 w-full overflow-hidden">
+                  <div 
+                    className="overflow-hidden border-none shadow-md rounded-2xl dark:bg-[#1E1E1E] dark:text-white bg-white h-full flex flex-col cursor-pointer hover:shadow-lg transition-shadow duration-300"
+                    onClick={() => navigateToProductDetail(dish.id)}
+                  >
+                    <div className="relative h-40 w-full overflow-hidden">
                       {dish.imageUrls && dish.imageUrls.length > 0 ? (
                         <>
                           <div 
                             className="flex transition-transform duration-500 ease-in-out h-full"
                             style={{ 
                               width: `${dish.imageUrls.length * 100}%`,
-                              transform: `translateX(-${(currentImageIndices[dish.id] || 0) * 100 / dish.imageUrls.length}%)`
+                              transform: `translateX(-${((currentImageIndices[dish.id] || 0) * 100) / dish.imageUrls.length}%)`
                             }}
-                            onTouchStart={handleTouchStart}
-                            onTouchMove={handleTouchMove}
+                            onTouchStart={(e) => handleTouchStart(e)}
+                            onTouchMove={() => handleTouchMove()}
                             onTouchEnd={(e) => handleTouchEnd(e, dish.id)}
                           >
                             {dish.imageUrls.map((url, index) => (
@@ -319,7 +352,10 @@ export default function SpecialDishesCarousel() {
                             <>
                               {/* Navigation arrows */}
                               <button 
-                                onClick={() => goToPrevSlide(dish.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation(); // Prevent card click
+                                  goToPrevSlide(dish.id);
+                                }}
                                 className="absolute left-1 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-30 hover:bg-opacity-50 text-white rounded-full p-1 z-10"
                                 aria-label="Previous image"
                               >
@@ -329,7 +365,10 @@ export default function SpecialDishesCarousel() {
                               </button>
                               
                               <button 
-                                onClick={() => goToNextSlide(dish.id)}
+                                onClick={(e) => {
+                                  e.stopPropagation(); // Prevent card click
+                                  goToNextSlide(dish.id);
+                                }}
                                 className="absolute right-1 top-1/2 transform -translate-y-1/2 bg-black bg-opacity-30 hover:bg-opacity-50 text-white rounded-full p-1 z-10"
                                 aria-label="Next image"
                               >
@@ -343,7 +382,10 @@ export default function SpecialDishesCarousel() {
                                 {dish.imageUrls.map((_, index) => (
                                   <button 
                                     key={index}
-                                    onClick={() => setCurrentImageIndices(prev => ({...prev, [dish.id]: index}))}
+                                    onClick={(e) => {
+                                      e.stopPropagation(); // Prevent card click
+                                      setCurrentImageIndices({...currentImageIndices, [dish.id]: index})
+                                    }}
                                     className={`h-1.5 rounded-full transition-all duration-300 ${
                                       index === (currentImageIndices[dish.id] || 0) ? 'w-3 bg-white' : 'w-1.5 bg-white/50 hover:bg-white/70'
                                     }`}
@@ -359,11 +401,6 @@ export default function SpecialDishesCarousel() {
                           <UtensilsCrossed className="w-14 h-14 text-gray-400 dark:text-gray-600" />
                         </div>
                       )}
-                      {dish.price > 15 && (
-                        <Badge className="absolute bottom-2 left-2 bg-orange-500 dark:bg-[#333333] hover:bg-orange-600 dark:hover:bg-[#444444] text-white">
-                          Premium
-                        </Badge>
-                      )}
                     </div>
                     
                     <div className="p-3 flex-1 flex flex-col dark:bg-[#1E1E1E]">
@@ -375,7 +412,10 @@ export default function SpecialDishesCarousel() {
                         <span className="font-bold text-orange-500 dark:text-white">₹ {dish.price?.toFixed(2) || "0.00"}</span>
                         
                         <Button
-                          onClick={() => handleAddToCart(dish)}
+                          onClick={(e) => {
+                            e.stopPropagation(); // Prevent card click
+                            handleAddToCart(dish)
+                          }}
                           size="icon"
                           className="h-8 w-8 rounded-full bg-red-500 dark:bg-red-600 text-white hover:bg-red-600 dark:hover:bg-red-700 transition-colors"
                         >
@@ -407,24 +447,20 @@ export default function SpecialDishesCarousel() {
             </div>
           </div>
           
-          {/* Navigation Buttons */}
-          <button
-            onClick={prevSlide}
-            className="absolute left-0 top-1/2 -translate-y-1/2 -ml-2 bg-white dark:bg-[#333333] rounded-full p-2 shadow-md hover:bg-gray-100 dark:hover:bg-[#444444] focus:outline-none z-10"
-            aria-label="Previous slide"
-          >
-            <ChevronLeft className="h-5 w-5 text-gray-900 dark:text-white" />
-          </button>
-          
-          <button
+          {/* Next slide button */}
+          <button 
             onClick={nextSlide}
-            className="absolute right-0 top-1/2 -translate-y-1/2 -mr-2 bg-white dark:bg-[#333333] rounded-full p-2 shadow-md hover:bg-gray-100 dark:hover:bg-[#444444] focus:outline-none z-10"
+            className="absolute -right-3 top-1/2 -translate-y-1/2 z-10 bg-white dark:bg-[#262626] shadow-md p-1.5 rounded-full flex items-center justify-center hover:bg-gray-50 dark:hover:bg-[#333333] border border-gray-200 dark:border-[#444444]"
             aria-label="Next slide"
           >
-            <ChevronRight className="h-5 w-5 text-gray-900 dark:text-white" />
+            <ChevronRight className="h-5 w-5 text-gray-600 dark:text-gray-400" />
           </button>
         </div>
-      </div>
+      ) : (
+        <div className="flex justify-center items-center py-8 bg-white dark:bg-[#1E1E1E] rounded-xl shadow-sm">
+          <p className="text-gray-500 dark:text-gray-400">No featured dishes available</p>
+        </div>
+      )}
     </div>
   )
 } 

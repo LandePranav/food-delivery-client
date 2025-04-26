@@ -7,8 +7,10 @@ import { useContext, useState, useEffect } from "react";
 import { context } from "@/context/contextProvider";
 import { motion } from "motion/react";
 import { CldImage } from "next-cloudinary";
+import { useRouter } from "next/navigation";
 
 export default function Card({ id, category, image, name, description, price, imageUrls, sellerId, imageUrl }) {
+  const router = useRouter();
   const {cartItems, addToCart: addItemToCart} = useContext(context);
   const [isVibrating, setIsVibrating] = useState(false);
   const [sellerName, setSellerName] = useState("");
@@ -16,6 +18,11 @@ export default function Card({ id, category, image, name, description, price, im
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [touchStartX, setTouchStartX] = useState(0);
   const [isSwiping, setIsSwiping] = useState(false);
+  
+  // Generate a unique interval time for this card (between 3000 and 7000 ms)
+  const [intervalTime] = useState(() => {
+    return Math.floor(Math.random() * 4000) + 3000; // Random time between 3-7 seconds
+  });
 
   // Fetch seller name when component mounts
   useEffect(() => {
@@ -55,28 +62,31 @@ export default function Card({ id, category, image, name, description, price, im
       controller.abort();
     };
   }, [sellerId]);
-  // Image slideshow effect
+  // Image slideshow effect with unique interval time
   useEffect(() => {
     let intervalId;
     
     if (imageUrls && imageUrls.length > 1 && !isSwiping) {
-      // Start the interval immediately when component mounts
+      // Start the interval with the unique time for this card
       intervalId = setInterval(() => {
         setCurrentImageIndex((prevIndex) => (prevIndex + 1) % imageUrls.length);
-      }, 5000);
+      }, intervalTime);
     }
     
     return () => {
       if (intervalId) clearInterval(intervalId);
     };
-  }, [imageUrls, isSwiping]);
+  }, [imageUrls, isSwiping, intervalTime]);
 
   const triggerVibration = () => {
       setIsVibrating(true);
       setTimeout(()=>setIsVibrating(false), 500);
   }
 
-  const handleAddToCart = () => {
+  const handleAddToCart = (e) => {
+    // Stop event propagation to prevent card click
+    e.stopPropagation();
+    
     const item = {
       id,
       category,
@@ -89,6 +99,10 @@ export default function Card({ id, category, image, name, description, price, im
     
     addItemToCart(item);
     triggerVibration();
+  }
+  
+  const navigateToProductDetail = () => {
+    router.push(`/menu/${id}`);
   }
 
   // Format price with rupee symbol
@@ -138,18 +152,23 @@ export default function Card({ id, category, image, name, description, price, im
   };
 
   // Manual navigation functions
-  const goToNextSlide = () => {
+  const goToNextSlide = (e) => {
+    e.stopPropagation(); // Prevent card click
     if (!imageUrls || imageUrls.length <= 1) return;
     setCurrentImageIndex((prevIndex) => (prevIndex + 1) % imageUrls.length);
   };
 
-  const goToPrevSlide = () => {
+  const goToPrevSlide = (e) => {
+    e.stopPropagation(); // Prevent card click
     if (!imageUrls || imageUrls.length <= 1) return;
     setCurrentImageIndex((prevIndex) => prevIndex === 0 ? imageUrls.length - 1 : prevIndex - 1);
   };
 
   return (
-    <div className="overflow-hidden border-none shadow-md rounded-2xl dark:bg-[#1E1E1E] dark:text-white bg-white h-full flex flex-col">
+    <div 
+      className="overflow-hidden border-none shadow-md rounded-2xl dark:bg-[#1E1E1E] dark:text-white bg-white h-full flex flex-col cursor-pointer hover:shadow-lg transition-shadow duration-300"
+      onClick={navigateToProductDetail}
+    >
       <div className="relative h-40 w-full overflow-hidden">
         {(imageUrls && imageUrls.length > 0) || imageUrl ? (
           imageUrls && imageUrls.length > 0 ? (
@@ -205,7 +224,10 @@ export default function Card({ id, category, image, name, description, price, im
                     {imageUrls.map((_, index) => (
                       <button 
                         key={index}
-                        onClick={() => setCurrentImageIndex(index)}
+                        onClick={(e) => {
+                          e.stopPropagation(); // Prevent card click
+                          setCurrentImageIndex(index);
+                        }}
                         className={`h-1.5 rounded-full transition-all duration-300 ${
                           index === currentImageIndex ? 'w-3 bg-white' : 'w-1.5 bg-white/50 hover:bg-white/70'
                         }`}
@@ -248,31 +270,28 @@ export default function Card({ id, category, image, name, description, price, im
         <div className="mt-2 flex items-center justify-between">
           <span className="font-bold text-orange-500 dark:text-white">{formatPrice(price)}</span>
           
-          <Button
+          <motion.button
+            animate={{
+              rotate: isVibrating ? [0, -10, 10, -10, 10, 0] : 0,
+              scale: isVibrating ? 1.2 : 1,
+            }}
+            transition={{
+              rotate: {
+                type: "tween",
+                duration: 0.5,
+              },
+              scale: {
+                type: "spring",
+                stiffness: 300,
+                damping: 10,
+              }
+            }}
             onClick={handleAddToCart}
-            size="icon"
-            className="h-8 w-8 rounded-full bg-red-500 dark:bg-red-600 text-white hover:bg-red-600 dark:hover:bg-red-700 transition-colors"
+            className="rounded-full bg-red-500 p-1.5 text-white hover:bg-orange-600 "
+            aria-label="Add to cart"
           >
-            <motion.div
-              animate={{
-                rotate: isVibrating ? [0, -10, 10, -10, 10, 0] : 0,
-                scale: isVibrating ? 1.3 : 1,
-              }}
-              transition={{
-                rotate: {
-                  type: "tween",
-                  duration: 0.5,
-                },
-                scale: {
-                  type: "spring",
-                  stiffness: 300,
-                  damping: 10,
-                }
-              }}
-            >
-              <LuShoppingCart className="w-4 h-4" />
-            </motion.div>
-          </Button>
+            <LuShoppingCart className="h-4 w-4" />
+          </motion.button>
         </div>
       </div>
     </div>

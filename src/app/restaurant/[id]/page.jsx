@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect, useContext, use, useCallback, useMemo } from "react"
-import Image from "next/image"
+import { CldImage } from "next-cloudinary"
 import { Star, Clock, MapPin, Phone, ShoppingCart, UtensilsCrossed, Store } from "lucide-react"
 import { PageLayout } from "@/components/layout/page-layout"
 import api from "@/lib/axios"
@@ -111,11 +111,12 @@ export default function RestaurantDetail({ params }) {
           <div className="relative h-24 w-24 flex-shrink-0 rounded-md items-center justify-center">
             {
               getImageUrl(product) ? (
-                <Image
+                <CldImage
                   src={getImageUrl(product)}
                   alt={product.name}
-                  fill
-                  className="object-cover"
+                  width={96}
+                  height={96}
+                  className="object-cover rounded-md"
                 />
               ) : (
                 <div className="flex items-center justify-center h-full rounded-md bg-gray-100 dark:bg-[#262626]">
@@ -176,11 +177,12 @@ export default function RestaurantDetail({ params }) {
           <div className="relative h-40 md:h-56 w-full mb-6">
             {
               (restaurant.imageUrl || restaurant.profile) ? (
-                <Image
+                <CldImage
                   src={restaurant.imageUrl || restaurant.profile}
                   alt={restaurant.name}
-                  fill
-                  className="object-cover rounded-xl"
+                  width={1200}
+                  height={400}
+                  className="object-cover rounded-xl w-full h-full"
                 />
               ) : (
                 <div className="flex items-center justify-center h-full rounded-xl pb-6 bg-gray-100 dark:bg-[#262626]">
@@ -199,7 +201,7 @@ export default function RestaurantDetail({ params }) {
 
           {/* Restaurant Info */}
           <div className="bg-white dark:bg-[#1E1E1E] rounded-xl p-4 mb-6 shadow-sm">
-            <div className="flex flex-wrap gap-4 text-sm text-gray-600 dark:text-gray-300">
+            <div className="flex flex-col flex-wrap gap-4 text-sm text-gray-600 dark:text-gray-300">
               <div className="flex items-center">
                 <MapPin className="h-4 w-4 mr-1 text-red-500" />
                 <span>
@@ -207,13 +209,13 @@ export default function RestaurantDetail({ params }) {
                   {distance && <span className="ml-1">({distance.toFixed(1)} km away)</span>}
                 </span>
               </div>
-              <div className="flex items-center">
+              {/* <div className="flex items-center">
                 <Clock className="h-4 w-4 mr-1 text-red-500" />
-                <span>Open 9:00 AM - 10:00 PM</span>
-              </div>
+                <span>Open 9:00 AM  10:00 PM</span>
+              </div> */}
               <div className="flex items-center">
                 <Phone className="h-4 w-4 mr-1 text-red-500" />
-                <span>{restaurant.phone || "Phone not available"}</span>
+                <span>{restaurant.phone || "N/A"}</span>
               </div>
             </div>
           </div>

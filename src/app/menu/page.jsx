@@ -148,7 +148,7 @@ function MenuContent() {
       </div>
 
       {/* Price Filter Select using shadcn Select component */}
-      <div className="mb-4 w-fit">
+      {/* <div className="mb-4 w-fit">
         <Select 
           value={priceFilter.toString()} 
           onValueChange={handlePriceFilterChange}
@@ -164,7 +164,7 @@ function MenuContent() {
             ))}
           </SelectContent>
         </Select>
-      </div>
+      </div> */}
 
       {/* Loading State */}
       {isLoading ? (
@@ -178,7 +178,7 @@ function MenuContent() {
       ) : (
         <div className="w-full grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 py-3">
           {filtered.map((item) => (
-            <div key={item.id} className="h-full">
+            <div key={item.id} className="h-full cursor-pointer">
               <Card 
                 sellerId={item.sellerId} 
                 id={item.id} 
