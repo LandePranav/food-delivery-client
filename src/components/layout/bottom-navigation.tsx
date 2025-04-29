@@ -2,7 +2,9 @@
 
 import Link from "next/link"
 import { usePathname } from "next/navigation"
-import { Home, Menu, ShoppingCart, User, Store } from "lucide-react"
+import { Home, Menu, ShoppingCart, 
+  // User, 
+  Store } from "lucide-react"
 import { useContext } from "react"
 import { context } from "@/context/contextProvider"
 

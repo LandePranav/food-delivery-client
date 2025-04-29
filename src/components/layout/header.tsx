@@ -1,24 +1,27 @@
 "use client"
 
-import { useContext, useState, useRef, useEffect } from "react"
+import {useState, useRef, useEffect } from "react"
+// import {useContext} from "react"
 import { useRouter } from "next/navigation"
 import Link from "next/link"
-import { MapPin, Search, ShoppingCart, X } from "lucide-react"
+import { MapPin, Search, 
+  // ShoppingCart, 
+  X } from "lucide-react"
 import { useSession } from "next-auth/react"
-import { context } from "@/context/contextProvider"
+// import { context } from "@/context/contextProvider"
 import { satisfy } from "@/app/fonts"
 import UserDropdown from "@/components/common/userDropdown"
 
 export function Header() {
   const { data: session } = useSession()
-  const { cartItems } = useContext(context)
+  // const { cartItems } = useContext(context)
   const router = useRouter()
   const [searchOpen, setSearchOpen] = useState(false)
   const [searchQuery, setSearchQuery] = useState("")
   const searchInputRef = useRef<HTMLInputElement>(null)
   
   // Calculate total quantity of items in cart
-  const totalCartItems = cartItems.reduce((total: number, item: Record<string, string | number | boolean | Record<string, string>>) => total + (item.quantity as number || 1), 0)
+  // const totalCartItems = cartItems.reduce((total: number, item: Record<string, string | number | boolean | Record<string, string>>) => total + (item.quantity as number || 1), 0)
   
   // Focus the search input when the search bar is opened
   useEffect(() => {
