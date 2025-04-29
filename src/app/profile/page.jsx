@@ -47,7 +47,6 @@ export default function Profile() {
             </PageLayout>
         )
     }
-    
     return (
         <PageLayout>
             <div className="flex flex-col gap-6">
@@ -90,7 +89,7 @@ export default function Profile() {
 
                 {/* Orders */}
                 <Card className="bg-white dark:bg-[#1E1E1E] border-gray-100 dark:border-[#333333]">
-                    <CardHeader className="pb-2">
+                    <CardHeader className="pb-5">
                         <CardTitle className="text-xl font-semibold text-gray-900 dark:text-white">My Orders</CardTitle>
                     </CardHeader>
                     <CardContent>
@@ -147,6 +146,46 @@ export default function Profile() {
                                 <p className="text-gray-500 dark:text-gray-400">You haven't placed any orders yet</p>
                             </div>
                         )}
+                    </CardContent>
+                </Card>
+
+                {/* Contact Information Footer */}
+                <Card className="bg-white dark:bg-[#1E1E1E] border-gray-100 dark:border-[#333333] mt-4">
+                    <CardHeader className="pb-2">
+                        <CardTitle className="text-xl font-semibold text-gray-900 dark:text-white">Contact Us</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        <div className="flex flex-col space-y-3 md:space-y-4 pt-3">
+                            <div className="flex items-center gap-3 md:gap-4">
+                                <Phone className="h-5 w-5 md:h-6 md:w-6 text-gray-500 dark:text-gray-400" />
+                                <div>
+                                    {/* <p className="text-sm text-gray-500 dark:text-gray-400">Customer Support</p> */}
+                                    <a 
+                                        href="https://wa.me/919999999999" 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="font-medium text-gray-900 dark:text-white hover:underline"
+                                    >
+                                        +91 9999999999
+                                    </a>
+                                </div>
+                            </div>
+                            
+                            <div className="flex items-center gap-3 md:gap-4">
+                                <Mail className="h-5 w-5 md:h-6 md:w-6 text-gray-500 dark:text-gray-400" />
+                                <div>
+                                    {/* <p className="text-sm text-gray-500 dark:text-gray-400">Email</p> */}
+                                    <a 
+                                        href="mailto:support@example.com" 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                        className="font-medium text-gray-900 dark:text-white hover:underline"
+                                    >
+                                        support@example.com
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
                     </CardContent>
                 </Card>
             </div>

@@ -37,7 +37,7 @@ export function Header() {
   }
   
   return (
-    <header className="sticky top-0 z-40 bg-white dark:bg-[#121212] py-4 px-4 border-b border-gray-200 dark:border-[#333333]">
+    <header className="sticky top-0 z-40 bg-white dark:bg-[#121212] py-4 px-4 md:px-8 border-b border-gray-200 dark:border-[#333333]">
       {searchOpen ? (
         <form 
           onSubmit={handleSearch}
@@ -65,8 +65,9 @@ export function Header() {
       ) : (
         <div className="flex justify-between items-center">
           {/* Logo */}
-          <Link href="/" className={satisfy.className + " text-xl md:text-2xl font-bold text-gray-900 dark:text-white"}>
-            Wake <span className="text-red-500 px-1">N</span> Bake
+          <Link href="/" className={satisfy.className + " text-2xl md:text-3xl font-bold text-gray-900 dark:text-white"}>
+            {/* Wake <span className="text-red-500 px-1">N</span> Bake */}
+            <span className="text-red-500 px-1">f</span>irst <span className="text-red-500 px-1">b</span>ite
           </Link>
           
           {/* Location */}
@@ -76,29 +77,29 @@ export function Header() {
           </div>
 
           {/* Search and Cart */}
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-1">
             <button 
               onClick={() => setSearchOpen(true)}
               className="p-2 rounded-full bg-gray-100 dark:bg-[#333333] text-gray-700 dark:text-gray-300"
             >
-              <Search className="h-5 w-5" />
+              <Search className="h-5 w-5 md:h-6 md:w-6" />
             </button>
             
-            <Link href="/cart" className="relative">
+            {/* <Link href="/cart" className="relative">
               <ShoppingCart className="h-6 w-6 text-gray-700 dark:text-gray-300" />
               {totalCartItems > 0 && (
                 <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs w-4 h-4 flex items-center justify-center rounded-full">
                   {totalCartItems}
                 </span>
               )}
-            </Link>
+            </Link> */}
             
             {session ? (
               <UserDropdown />
             ) : (
               <Link
                 href="/api/auth/signin"
-                className="hidden md:block px-3 py-1.5 bg-red-500 text-white text-sm font-medium rounded-full hover:bg-red-600"
+                className="hidden md:block px-3 py-1.5 bg-red-500 text-white text-smp font-medium rounded-full hover:bg-red-600"
               >
                 Sign In
               </Link>

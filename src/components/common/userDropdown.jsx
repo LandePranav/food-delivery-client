@@ -5,16 +5,7 @@ import { Button } from "@/components/ui/button";
 import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import { useState } from "react";
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import CustomAlert from "./customAlert";
 
 export default function UserDropdown() {
     const {data: session} = useSession();
@@ -23,20 +14,24 @@ export default function UserDropdown() {
     const handleLogout = () => {
         setShowLogoutDialog(true);
     };
+
+    const handleCancel = () => {
+        setShowLogoutDialog(false);
+    };
     
     return (
         <>
             <DropdownMenu>
-                <DropdownMenuTrigger>
-                    <div className="w-full h-full flex gap-2 justify-center items-center">
+                <DropdownMenuTrigger asChild>
+                    <div className="flex gap-2 px-1 md:px-3 items-center cursor-pointer">
                         <Avatar>
-                            <AvatarImage className="rounded-full md:w-10 md:h-10 w-8 h-8 my-auto mx-auto" src={session?.user?.image} />
+                            <AvatarImage className="rounded-full md:w-full md:h-full w-8 h-8 my-auto mx-auto" src={session?.user?.image} />
                             <AvatarFallback className="bg-red-500">
-                                {session.user.name.charAt(0)}
+                                {session?.user?.name?.charAt(0)}
                             </AvatarFallback>
                         </Avatar>
                         <p className="text-center text-nowrap hidden sm:block">
-                            {session.user.name}
+                            {session?.user?.name}
                         </p>
                         <ChevronDown className="w-4 h-4 hidden sm:block" />
                     </div>
@@ -48,7 +43,6 @@ export default function UserDropdown() {
                         </Link>
                         <ArrowRight className="w-4 h-4" />
                     </DropdownMenuItem>
-                    {/* <DropdownMenuSeparator /> */}
                     <DropdownMenuItem>
                         <Button className="w-full text-red-500" onClick={handleLogout}>
                             Log Out
@@ -57,20 +51,25 @@ export default function UserDropdown() {
                 </DropdownMenuContent>
             </DropdownMenu>
             
-            <AlertDialog open={showLogoutDialog} onOpenChange={setShowLogoutDialog}>
-                <AlertDialogContent className="max-w-[80vw] rounded-lg">
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Are you sure you want to log out?</AlertDialogTitle>
-                        <AlertDialogDescription>
+            {showLogoutDialog && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={handleCancel} />
+                    <div className="relative bg-white dark:bg-black border border-gray-300 dark:border-gray-700 p-6 rounded-lg max-w-md w-full mx-4">
+                        <h2 className="text-lg font-semibold mb-2">Are you sure you want to log out?</h2>
+                        <p className="text-gray-600 dark:text-gray-400 mb-4">
                             You will need to sign in again to access your account.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction className="text-red-500" onClick={() => signOut()}>Log Out</AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
+                        </p>
+                        <div className="flex justify-end gap-2">
+                            <Button variant="ghost" onClick={handleCancel}>
+                                Cancel
+                            </Button>
+                            <Button onClick={() => signOut()}>
+                                Log Out
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </>
     )
 }

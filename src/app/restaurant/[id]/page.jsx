@@ -213,10 +213,10 @@ export default function RestaurantDetail({ params }) {
                 <Clock className="h-4 w-4 mr-1 text-red-500" />
                 <span>Open 9:00 AM  10:00 PM</span>
               </div> */}
-              <div className="flex items-center">
+              {/* <div className="flex items-center">
                 <Phone className="h-4 w-4 mr-1 text-red-500" />
                 <span>{restaurant.phone || "N/A"}</span>
-              </div>
+              </div> */}
             </div>
           </div>
 
