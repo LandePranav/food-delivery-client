@@ -9,12 +9,23 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { User, Package, MapPin, Phone, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
+import { signOut } from "next-auth/react";
 
 export default function Profile() {
     const {data: session} = useSession();
     const [orders, setOrders] = useState([]);
     const [isLoading, setIsLoading] = useState(true);
     const router = useRouter();
+
+    const [showLogoutDialog, setShowLogoutDialog] = useState(false);
+    
+    const handleLogout = () => {
+        setShowLogoutDialog(true);
+    };
+
+    const handleCancel = () => {
+        setShowLogoutDialog(false);
+    };
     
     useEffect(() => {
         const fetchOrders = async () => {
@@ -161,12 +172,13 @@ export default function Profile() {
                                 <div>
                                     {/* <p className="text-sm text-gray-500 dark:text-gray-400">Customer Support</p> */}
                                     <a 
-                                        href="https://wa.me/919999999999" 
+                                        href="https://wa.me/918999201431" 
                                         target="_blank" 
                                         rel="noopener noreferrer"
                                         className="font-medium text-gray-900 dark:text-white hover:underline"
                                     >
-                                        +91 9999999999
+                                        
+                                        +91 8999201431
                                     </a>
                                 </div>
                             </div>
@@ -176,18 +188,44 @@ export default function Profile() {
                                 <div>
                                     {/* <p className="text-sm text-gray-500 dark:text-gray-400">Email</p> */}
                                     <a 
-                                        href="mailto:support@example.com" 
+                                        href="mailto:ex.firsttbite@gmail.com" 
                                         target="_blank" 
                                         rel="noopener noreferrer"
                                         className="font-medium text-gray-900 dark:text-white hover:underline"
                                     >
-                                        support@example.com
+                                        ex.firsttbite@gmail.com
                                     </a>
                                 </div>
                             </div>
                         </div>
                     </CardContent>
                 </Card>
+                <Card className="bg-white dark:bg-[#1E1E1E] transition-all duration-300 border-gray-100 hover:bg-gray-200 dark:hover:bg-[#252525] dark:border-[#333333] mt-2 w-2/3 md:w-1/2 lg:w-1/3 mx-auto">
+                    <CardHeader className="py-2 cursor-pointer">
+                        <CardTitle onClick={handleLogout} className="text-lg text-center font-semibold text-red-400 hover:text-red-600 transition-all duration-300">
+                            LOG OUT
+                        </CardTitle>
+                    </CardHeader>
+                </Card>
+                {showLogoutDialog && (
+                <div className="fixed inset-0 z-50 flex items-center justify-center">
+                    <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" onClick={handleCancel} />
+                    <div className="relative bg-white dark:bg-black border border-gray-300 dark:border-gray-700 p-6 rounded-lg max-w-md w-full mx-4">
+                        <h2 className="text-lg font-semibold mb-2">Are you sure you want to log out?</h2>
+                        <p className="text-gray-600 dark:text-gray-400 mb-4">
+                            You will need to sign in again to access your account.
+                        </p>
+                        <div className="flex justify-end gap-2">
+                            <Button variant="ghost" onClick={handleCancel}>
+                                Cancel
+                            </Button>
+                            <Button onClick={() => signOut()}>
+                                Log Out
+                            </Button>
+                        </div>
+                    </div>
+                </div>
+            )}
             </div>
         </PageLayout>
     )
