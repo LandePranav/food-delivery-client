@@ -200,7 +200,7 @@ export default function Profile() {
                         </div>
                     </CardContent>
                 </Card>
-                <Card className="bg-white dark:bg-[#1E1E1E] transition-all duration-300 border-gray-100 hover:bg-gray-200 dark:hover:bg-[#252525] dark:border-[#333333] mt-2 w-2/3 md:w-1/2 lg:w-1/3 mx-auto">
+                <Card className="bg-white dark:bg-[#1E1E1E] transition-all duration-300 border-gray-100 hover:bg-gray-200 dark:hover:bg-[#252525] dark:border-[#333333] mt-2 w-2/3 md:w-1/2 lg:w-1/3 mx-auto mb-8">
                     <CardHeader className="py-2 cursor-pointer">
                         <CardTitle onClick={handleLogout} className="text-lg text-center font-semibold text-red-400 hover:text-red-600 transition-all duration-300">
                             LOG OUT

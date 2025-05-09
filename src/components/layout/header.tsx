@@ -10,7 +10,8 @@ import { MapPin, Search,
 import { useSession } from "next-auth/react"
 // import { context } from "@/context/contextProvider"
 import { satisfy } from "@/app/fonts"
-import UserDropdown from "@/components/common/userDropdown"
+// import UserDropdown from "@/components/common/userDropdown"
+import { Avatar, AvatarImage, AvatarFallback } from "../ui/avatar"
 
 export function Header() {
   const { data: session } = useSession()
@@ -70,7 +71,7 @@ export function Header() {
           {/* Logo */}
           <Link href="/" className={satisfy.className + " text-2xl md:text-3xl font-bold text-gray-900 dark:text-white"}>
             {/* Wake <span className="text-red-500 px-1">N</span> Bake */}
-            <span className="text-red-500 px-1">f</span>irst <span className="text-red-500 px-1">b</span>ite
+            <span className="text-red-500 px-1">B</span>ites
           </Link>
           
           {/* Location */}
@@ -98,7 +99,19 @@ export function Header() {
             </Link> */}
             
             {session ? (
-              <UserDropdown />
+              // <UserDropdown />
+              <Link href={"/profile"} className="flex gap-2 px-1 md:px-3 items-center cursor-pointer">
+                  <Avatar>
+                      <AvatarImage className="rounded-full md:w-full md:h-full w-8 h-8 my-auto mx-auto" src={session?.user?.image} />
+                      <AvatarFallback className="bg-red-500">
+                          {session?.user?.name?.charAt(0)}
+                      </AvatarFallback>
+                  </Avatar>
+                  <p className="text-center text-nowrap hidden sm:block">
+                      {session?.user?.name}
+                  </p>
+                  {/* <ChevronDown className="w-4 h-4 hidden sm:block" /> */}
+              </Link>
             ) : (
               <Link
                 href="/api/auth/signin"
@@ -112,4 +125,4 @@ export function Header() {
       )}
     </header>
   )
-} 
+}
