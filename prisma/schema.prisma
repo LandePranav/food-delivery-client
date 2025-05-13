@@ -19,6 +19,8 @@ model Seller {
   updatedAt         DateTime  @updatedAt
   isVerified        Boolean   @default(false)
   verificationToken String?
+  otp               String?
+  otpExpiry         DateTime?
   active            Boolean   @default(false)
   gpsLocation       Json?
   restaurantName    String?   @unique
