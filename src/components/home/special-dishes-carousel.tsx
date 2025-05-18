@@ -2,7 +2,7 @@
 
 // import Image from "next/image"
 import { ChevronLeft, ChevronRight, ShoppingCart, UtensilsCrossed } from "lucide-react"
-import {useState, useEffect, useContext } from "react"
+import {useState, useEffect, useContext, useRef } from "react"
 import api from "@/lib/axios"
 import { context } from "@/context/contextProvider"
 import { Button } from "@/components/ui/button"
@@ -36,19 +36,16 @@ export default function SpecialDishesCarousel() {
   const [touchStartX, setTouchStartX] = useState(0)
   const [isSwiping, setIsSwiping] = useState(false)
   const [slideIntervals, setSlideIntervals] = useState<Record<string, number>>({})
-
-  // Number of dishes to display at once based on screen size
-  const [itemsToShow, setItemsToShow] = useState(1)
+  const carouselRef = useRef<HTMLDivElement>(null)
+  const [slidesPerView, setSlidesPerView] = useState(1)
+  const [showNavigation, setShowNavigation] = useState(true)
 
   useEffect(() => {
     const fetchSpecialDishes = async () => {
       try {
         const response = await api.get("/products")
-        console.log("Special dishes data:", response.data) // Debug
         if (response.status === 200) {
-          // Ensure we have data before setting state
           if (response.data && Array.isArray(response.data) && response.data.length > 0) {
-            console.log("Special dishes data:", response.data) // Debug
             const filteredDishes = response.data.filter((dish: Dish) => dish.isFeatured === true)
             setSpecialDishes(filteredDishes)
             
@@ -58,7 +55,6 @@ export default function SpecialDishesCarousel() {
             
             filteredDishes.forEach((dish: Dish) => {
               initialIndices[dish.id] = 0
-              // Generate random interval between 5000 and 10000 ms (5-10 seconds)
               initialIntervals[dish.id] = Math.floor(Math.random() * 5000) + 5000
             })
             
@@ -104,26 +100,36 @@ export default function SpecialDishesCarousel() {
     
     fetchSpecialDishes()
 
-    // Update itemsToShow based on window width
-    const updateItemsToShow = () => {
-      if (window.innerWidth >= 1024) {
-        setItemsToShow(3)
-      } else if (window.innerWidth >= 768) {
-        setItemsToShow(2)
+    // Update responsive behavior
+    const handleResize = () => {
+      if (window.innerWidth >= 1024) { // lg
+        setSlidesPerView(3)
+      } else if (window.innerWidth >= 768) { // md
+        setSlidesPerView(2)
       } else {
-        setItemsToShow(1)
+        setSlidesPerView(1)
       }
+      updateNavigationVisibility()
+      // Reset to first slide when resizing to avoid blank spaces
+      setCurrentIndex(0)
     }
 
-    // Set initial value
-    updateItemsToShow()
-
-    // Add event listener for window resize
-    window.addEventListener("resize", updateItemsToShow)
-
-    // Clean up
-    return () => window.removeEventListener("resize", updateItemsToShow)
+    handleResize()
+    window.addEventListener('resize', handleResize)
+    return () => window.removeEventListener('resize', handleResize)
   }, [])
+
+  // Check if navigation should be shown
+  const updateNavigationVisibility = () => {
+    if (carouselRef.current && specialDishes.length > 0) {
+      setShowNavigation(specialDishes.length > slidesPerView)
+    }
+  }
+
+  // Update navigation visibility when dishes or slides per view changes
+  useEffect(() => {
+    updateNavigationVisibility()
+  }, [specialDishes, slidesPerView])
 
   // Image slideshow effect
   useEffect(() => {
@@ -149,15 +155,26 @@ export default function SpecialDishesCarousel() {
   }, [specialDishes, isSwiping, slideIntervals])
 
   const prevSlide = () => {
-    setCurrentIndex((prevIndex) => 
-      prevIndex === 0 ? Math.max(0, specialDishes.length - itemsToShow) : prevIndex - 1
-    )
+    setCurrentIndex((prevIndex) => {
+      if (prevIndex <= 0) {
+        // If at the beginning, go to the last possible position
+        return Math.max(0, specialDishes.length - slidesPerView)
+      }
+      // Otherwise, go back exactly one slide
+      return prevIndex - 1
+    })
   }
 
   const nextSlide = () => {
-    setCurrentIndex((prevIndex) => 
-      prevIndex >= specialDishes.length - itemsToShow ? 0 : prevIndex + 1
-    )
+    setCurrentIndex((prevIndex) => {
+      const maxIndex = Math.max(0, specialDishes.length - slidesPerView)
+      if (prevIndex >= maxIndex) {
+        // If at the end, go back to the first slide
+        return 0
+      }
+      // Otherwise, go forward exactly one slide
+      return prevIndex + 1
+    })
   }
 
   const handleAddToCart = (dish: Dish) => {
@@ -283,8 +300,11 @@ export default function SpecialDishesCarousel() {
     )
   }
 
+  // Calculate card width based on slidesPerView
+  const cardWidth = 100 / slidesPerView
+
   return (
-    <div className="my-6 md:my-8">
+    <div className="my-6 md:my-8 px-4">
       <div className="flex justify-between items-center mb-3">
         <h2 className="text-lg font-bold text-gray-800 dark:text-white">Featured Special Dishes</h2>
       </div>
@@ -295,28 +315,31 @@ export default function SpecialDishesCarousel() {
         </div>
       ) : specialDishes.length > 0 ? (
         <div className="relative">
-          {/* Previous slide button */}
-          <button 
-            onClick={prevSlide}
-            className="absolute -left-3 top-1/2 -translate-y-1/2 z-10 bg-white dark:bg-[#262626] shadow-md p-1.5 rounded-full flex items-center justify-center hover:bg-gray-50 dark:hover:bg-[#333333] border border-gray-200 dark:border-[#444444]"
-            aria-label="Previous slide"
-          >
-            <ChevronLeft className="h-5 w-5 text-gray-600 dark:text-gray-400" />
-          </button>
+          {/* Previous slide button - only show if needed */}
+          {showNavigation && (
+            <button 
+              onClick={prevSlide}
+              className="absolute -left-3 top-1/2 -translate-y-1/2 z-10 bg-white dark:bg-[#262626] shadow-md p-1.5 rounded-full flex items-center justify-center hover:bg-gray-50 dark:hover:bg-[#333333] border border-gray-200 dark:border-[#444444]"
+              aria-label="Previous slide"
+            >
+              <ChevronLeft className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+            </button>
+          )}
           
           {/* Carousel */}
-          <div className="overflow-hidden my-2">
-            <div className="flex transition-transform duration-500 ease-in-out"
+          <div className="overflow-hidden" ref={carouselRef}>
+            <div 
+              className="flex gap-4 transition-transform duration-300 ease-in-out pl-1"
               style={{
-                transform: `translateX(${-currentIndex * (100 / itemsToShow)}%)`,
-                width: `${specialDishes.length * (100 / itemsToShow)}%`
+                transform: `translateX(-${currentIndex * cardWidth * 0.34 * slidesPerView}%)`,
+                width: `${specialDishes.length * cardWidth}%`
               }}
             >
               {specialDishes.map((dish) => (
                 <div 
                   key={dish.id} 
-                  className="flex-shrink-0 px-2" 
-                  style={{ width: `${100 / specialDishes.length * itemsToShow}%` }}
+                  className="px-1"
+                  style={{ width: `${cardWidth}%` }}
                 >
                   <div 
                     className="overflow-hidden border-none shadow-md rounded-2xl dark:bg-[#1E1E1E] dark:text-white bg-white h-full flex flex-col cursor-pointer hover:shadow-lg transition-shadow duration-300"
@@ -447,14 +470,16 @@ export default function SpecialDishesCarousel() {
             </div>
           </div>
           
-          {/* Next slide button */}
-          <button 
-            onClick={nextSlide}
-            className="absolute -right-3 top-1/2 -translate-y-1/2 z-10 bg-white dark:bg-[#262626] shadow-md p-1.5 rounded-full flex items-center justify-center hover:bg-gray-50 dark:hover:bg-[#333333] border border-gray-200 dark:border-[#444444]"
-            aria-label="Next slide"
-          >
-            <ChevronRight className="h-5 w-5 text-gray-600 dark:text-gray-400" />
-          </button>
+          {/* Next slide button - only show if needed */}
+          {showNavigation && (
+            <button 
+              onClick={nextSlide}
+              className="absolute -right-3 top-1/2 -translate-y-1/2 z-10 bg-white dark:bg-[#262626] shadow-md p-1.5 rounded-full flex items-center justify-center hover:bg-gray-50 dark:hover:bg-[#333333] border border-gray-200 dark:border-[#444444]"
+              aria-label="Next slide"
+            >
+              <ChevronRight className="h-5 w-5 text-gray-600 dark:text-gray-400" />
+            </button>
+          )}
         </div>
       ) : (
         <div className="flex justify-center items-center py-8 bg-white dark:bg-[#1E1E1E] rounded-xl shadow-sm">
