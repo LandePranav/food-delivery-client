@@ -7,6 +7,7 @@ import { PageLayout } from "@/components/layout/page-layout"
 import api from "@/lib/axios"
 import { context } from "@/context/contextProvider"
 import { motion } from "framer-motion"
+import { useRouter } from "next/navigation"
 
 export default function RestaurantDetail({ params }) {
   const { id } = use(params)
@@ -16,7 +17,7 @@ export default function RestaurantDetail({ params }) {
   const { addToCart, userLocation, getDistanceFromUser } = useContext(context)
   const [distance, setDistance] = useState(null)
   const [vibratingItemId, setVibratingItemId] = useState(null)
-
+  const router = useRouter()
   // Helper function to get the best available image URL - memoized to prevent recalculations
   const getImageUrl = useCallback((item) => {
     if (!item) return ""
@@ -105,7 +106,8 @@ export default function RestaurantDetail({ params }) {
     return products.map((product) => (
       <div 
         key={product.id}
-        className="bg-white dark:bg-[#1E1E1E] rounded-xl overflow-hidden shadow-sm border border-gray-100 dark:border-[#333333]"
+        onClick={() => router.push(`/menu/${product.id}`)}
+        className="bg-white cursor-pointer dark:bg-[#1E1E1E] rounded-xl overflow-hidden shadow-sm border border-gray-200 dark:border-[#333333] hover:shadow-md hover:border-gray-400 hover:dark:border-[#4b4b4b] transition-all duration-500"
       >
         <div className="flex items-center justify-center px-2">
           <div className="relative h-24 w-24 flex-shrink-0 rounded-md items-center justify-center">

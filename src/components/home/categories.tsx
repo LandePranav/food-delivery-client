@@ -37,7 +37,7 @@ export function Categories({ categories = [] }: CategoriesProps) {
   }
   
   return (
-    <div className="my-6">
+    <div className="my-3 sm:my-6">
       <h2 className="text-lg font-semibold mb-3 text-gray-900 dark:text-white">Categories</h2>
       
       <div className="flex overflow-x-auto py-2 gap-3 scrollbar-hide">

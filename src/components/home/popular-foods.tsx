@@ -355,23 +355,26 @@ export default function PopularFoods({ items = [], limit = 4 }: PopularFoodsProp
                 
                 <div className="p-2 flex-1 flex flex-col justify-between">
                   <div>
-                    <div className="flex items-center justify-between mb-1">
-                      <h3 className="font-medium text-md">{item.name}</h3>
-                      <span className="flex items-center text-sm ml-2">
-                        {formatPrice(item.price)}
-                      </span>
-                    </div>
+                    <h3 className="font-medium text-md">{item.name}</h3>
+
                     
+                    <p className="text-xs text-gray-700 dark:text-gray-300 mt-1 pb-1 text-muted-foreground">
+                      {getSellerName(item.sellerId)}
+                    </p>
+
                     <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mb-1">
                       {item.description || "Delicious food item from our menu"}
                     </p>
                     
-                    <p className="text-xs text-gray-700 dark:text-gray-300 mt-1">
-                      {getSellerName(item.sellerId)}
-                    </p>
                   </div>
                   
-                  <div className="flex justify-end mt-2">
+                  <div className="flex justify-between items-center mt-2">
+                    <div>
+                      <span className="flex items-center text-md font-semibold">
+                        {formatPrice(item.price)}
+                      </span>
+                    </div>
+                    
                     <motion.button
                       onClick={(e) => {
                         e.stopPropagation(); // Prevent card click
@@ -388,7 +391,7 @@ export default function PopularFoods({ items = [], limit = 4 }: PopularFoodsProp
                         ease: "easeInOut",
                       }}
                     >
-                      <ShoppingCart className="h-4 w-4" />
+                      <ShoppingCart className="h-5 w-5" />
                     </motion.button>
                   </div>
                 </div>

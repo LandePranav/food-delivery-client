@@ -255,11 +255,11 @@ export default function Card({ id, category, image, name, description, price, im
       </div>
       
       <div className="p-3 flex-1 flex flex-col">
-        <h3 className="font-bold text-gray-800 dark:text-white text-sm line-clamp-1">
+        <h3 className="font-bold text-gray-800 dark:text-white text-sm line-clamp-1 pb-1">
           {name}
         </h3>
         
-        <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">
+        <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1 pb-0.5">
           {isLoading ? "Loading..." : sellerName}
         </p>
         
@@ -268,7 +268,7 @@ export default function Card({ id, category, image, name, description, price, im
         </p>
         
         <div className="mt-2 flex items-center justify-between">
-          <span className="font-bold text-orange-500 dark:text-white">{formatPrice(price)}</span>
+          <span className="font-bold text-md text-orange-500 dark:text-white">{formatPrice(price)}</span>
           
           <motion.button
             animate={{
@@ -290,7 +290,7 @@ export default function Card({ id, category, image, name, description, price, im
             className="rounded-full bg-red-500 p-1.5 text-white hover:bg-orange-600 "
             aria-label="Add to cart"
           >
-            <LuShoppingCart className="h-4 w-4" />
+            <LuShoppingCart className="h-5 w-5" />
           </motion.button>
         </div>
       </div>
