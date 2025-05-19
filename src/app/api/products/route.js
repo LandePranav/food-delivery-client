@@ -19,8 +19,8 @@ export async function GET(request) {
         const currentTimeInMinutes = hours * 60 + minutes;
         
         // Check if current time is within operating hours (6am to 12am)
-        // const isOperatingHours = currentTimeInMinutes >= 6 * 60 && currentTimeInMinutes <= 24 * 60;
-        const isOperatingHours = true;
+        const isOperatingHours = currentTimeInMinutes >= 6 * 60 && currentTimeInMinutes <= 24 * 60;
+        // const isOperatingHours = true;
         
         // Return empty array if outside operating hours
         if (!isOperatingHours) {
