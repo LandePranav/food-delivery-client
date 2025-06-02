@@ -1,4 +1,5 @@
 import Razorpay from "razorpay";
+import { addHours } from 'date-fns';
 
 import { NextResponse } from "next/server";
 
@@ -13,7 +14,15 @@ const razorpay = new Razorpay({
 })
 
 export async function POST(request) {
-    
+    // Get current time in IST
+    const currentISTTime = addHours(new Date(), 5.5);
+    const currentHour = currentISTTime.getUTCHours();
+
+    // Check if current time is between 12 AM and 6 AM IST
+    if (currentHour >= 0 && currentHour < 6) {
+        return NextResponse.json({success: false, message: "Orders cannot be placed between 12 AM and 6 AM IST.", status: 403 });
+    }
+
     const data = await request.json();
     console.log(data);
     try {
@@ -46,6 +55,12 @@ export async function POST(request) {
                 ...(item.image && { image: item.image }),
                 ...(item.imageUrls && { imageUrls: item.imageUrls }),
             }));
+
+            // update user phone number
+            await prisma.user.update({
+                where: { id: data.userId },
+                data: { phone: data.phone },
+            });
             
             // Store order in database with pending status
             const dbOrder = await prisma.order.create({

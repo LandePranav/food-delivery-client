@@ -286,6 +286,15 @@ export default function Cart() {
             
             // Submit order to API
             const response = await api.post('/create-order', orderData);
+
+            if (response.data.success === false) {
+                setAlertType("error");
+                setAlertMessage(response.data.message);
+                setShowAlert(true);
+                setTimeout(() => setShowAlert(false), 5000);
+                return;
+            }
+
             console.log("Order Response : ", response);
             const data = response.data;
 
