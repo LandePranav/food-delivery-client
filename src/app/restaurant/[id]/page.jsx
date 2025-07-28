@@ -54,8 +54,15 @@ export default function RestaurantDetail({ params }) {
           setRestaurant(restaurantResponse.data)
         }
         
-        // Fetch products from this restaurant
-        const productsResponse = await api.get(`/products?sellerId=${id}`)
+        // Fetch products from this restaurant with user location
+        const params = new URLSearchParams()
+        params.append('sellerId', id)
+        if (userLocation) {
+          params.append('lat', userLocation.latitude.toString())
+          params.append('lng', userLocation.longitude.toString())
+        }
+        
+        const productsResponse = await api.get(`/products?${params.toString()}`)
         if (productsResponse.status === 200) {
           setProducts(productsResponse.data)
         }
@@ -67,7 +74,7 @@ export default function RestaurantDetail({ params }) {
     }
 
     fetchRestaurantData()
-  }, [id]); // Only refetch when ID changes
+  }, [id, userLocation]); // Re-fetch when ID or user location changes
 
   // Separate useEffect for distance calculations
   useEffect(() => {

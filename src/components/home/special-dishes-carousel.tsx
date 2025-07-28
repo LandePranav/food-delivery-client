@@ -25,13 +25,12 @@ interface Dish {
   isFeatured?: boolean
 }
 
-
 export default function SpecialDishesCarousel() {
   const router = useRouter()
   const [specialDishes, setSpecialDishes] = useState<Dish[]>([])
   const [currentIndex, setCurrentIndex] = useState(0)
   const [loading, setLoading] = useState(true)
-  const { setCartItems } = useContext(context)
+  const { setCartItems, userLocation } = useContext(context)
   const [sellerNames, setSellerNames] = useState<Record<string, string>>({})
   const [vibratingItemId, setVibratingItemId] = useState<string | null>(null)
   const [currentImageIndices, setCurrentImageIndices] = useState<Record<string, number>>({})
@@ -57,7 +56,14 @@ export default function SpecialDishesCarousel() {
   useEffect(() => {
     const fetchSpecialDishes = async () => {
       try {
-        const response = await api.get("/products")
+        // Build query parameters
+        const params = new URLSearchParams()
+        if (userLocation) {
+          params.append('lat', userLocation.latitude.toString())
+          params.append('lng', userLocation.longitude.toString())
+        }
+        
+        const response = await api.get(`/products?${params.toString()}`)
         if (response.status === 200) {
           if (response.data && Array.isArray(response.data) && response.data.length > 0) {
             const filteredDishes = response.data.filter((dish: Dish) => dish.isFeatured === true)
@@ -130,7 +136,7 @@ export default function SpecialDishesCarousel() {
     handleResize()
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
-  }, [])
+  }, [userLocation]) // Re-fetch when user location changes
 
   // Image slideshow effect
   useEffect(() => {

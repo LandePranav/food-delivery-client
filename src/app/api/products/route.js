@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 // import { cookies } from "next/headers";
 import prisma from "@/lib/prismadb";
-
+import { isWithinTimeSlot, calculateDistance } from "@/lib/utils";
 
 export async function GET(request) {
     try {
@@ -10,58 +10,64 @@ export async function GET(request) {
         const category = searchParams.get('category');
         const sort = searchParams.get('sort') || 'newest';
         const limit = parseInt(searchParams.get('limit') || '20', 10);
+        const userLat = parseFloat(searchParams.get('lat'));
+        const userLng = parseFloat(searchParams.get('lng'));
         
-        // Get current time in India (IST = UTC+5:30)
-        const now = new Date();
-        const indiaTime = new Date(now.getTime() + (5.5 * 60 * 60 * 1000));
-        const hours = indiaTime.getUTCHours();
-        const minutes = indiaTime.getUTCMinutes();
-        const currentTimeInMinutes = hours * 60 + minutes;
+        // Get current UTC time
+        const currentTime = new Date();
         
-        // Check if current time is within operating hours (6am to 12am)
-        const isOperatingHours = currentTimeInMinutes >= 6 * 60 && currentTimeInMinutes <= 24 * 60;
-        // const isOperatingHours = true;
+        // Build the where clause for time slot filtering
+        let whereClause = {
+            visible: true,
+            seller: {
+                active: true
+            },
+            AND: [
+                {
+                    OR: [
+                        // Products with no time slot (always available)
+                        {
+                            startTime: null,
+                            endTime: null
+                        },
+                        // Products with time slots (will be filtered later)
+                        {
+                            startTime: { not: null },
+                            endTime: { not: null }
+                        }
+                    ]
+                }
+            ]
+        };
         
-        // Return empty array if outside operating hours
-        if (!isOperatingHours) {
-            return NextResponse.json([]);
+        // Add sellerId filter if provided
+        if (sellerId) {
+            whereClause.sellerId = sellerId;
+        }
+        
+        // Add category filter if provided by user
+        if (category) {
+            whereClause.categories = {
+                has: category,
+            };
         }
         
         // Build the query
         const query = {
-            where: {
-                visible: true,
-                seller: {
-                    active: true
-                }
-            },
+            where: whereClause,
             take: limit,
             include: {
                 seller: {
                     select: {
                         restaurantName: true,
                         username: true,
-                        deliveryCharge: true
+                        deliveryCharge: true,
+                        gpsLocation: true
                         // bankDetails explicitly excluded
                     },
                 },
             },
         };
-        
-        // Add sellerId filter if provided
-        if (sellerId) {
-            query.where = {
-                ...query.where,
-                sellerId: sellerId
-            };
-        }
-        
-        // Add category filter if provided by user
-        if (category) {
-            query.where.categories = {
-                has: category,
-            };
-        }
         
         // Add sorting
         if (sort === 'popularity') {
@@ -86,42 +92,48 @@ export async function GET(request) {
         
         const products = await prisma.product.findMany(query);
 
-        // Filter products based on time of day and their categories
-        const isBreakfastTime = currentTimeInMinutes >= 6 * 60 && currentTimeInMinutes <= 12 * 60;
-        const isLunchTime = currentTimeInMinutes >= 9 * 60 && currentTimeInMinutes <= 15 * 60;
-        const isDinnerTime = currentTimeInMinutes >= 18 * 60 && currentTimeInMinutes <= 24 * 60;
-        
-        const filteredProducts = products.filter(product => {
-            // If product has no categories, include it during operating hours
-            if (!product.categories || product.categories.length === 0) {
-                return true;
-            }
-            
-            const categories = product.categories.map(cat => cat.toLowerCase());
-            
-            // Check if product has breakfast category and if it's breakfast time
-            const hasBreakfast = categories.includes('breakfast');
-            if (hasBreakfast && !isBreakfastTime) {
-                return false;
-            }
-            
-            // Check if product has lunch category and if it's lunch time
-            const hasLunch = categories.includes('lunch');
-            if (hasLunch && !isLunchTime) {
-                return false;
-            }
-            
-            // Check if product has dinner category and if it's dinner time
-            const hasDinner = categories.includes('dinner');
-            if (hasDinner && !isDinnerTime) {
-                return false;
-            }
-            
-            return true;
+        // Filter products by time slot on the application level
+        // This is necessary because Prisma doesn't support complex time comparisons
+        const timeFilteredProducts = products.filter(product => {
+            return isWithinTimeSlot(product.startTime, product.endTime, currentTime);
         });
+
+        // Filter products by distance if user location is provided
+        let distanceFilteredProducts = timeFilteredProducts;
+        if (userLat && userLng && !isNaN(userLat) && !isNaN(userLng)) {
+            distanceFilteredProducts = timeFilteredProducts.filter(product => {
+                if (!product.seller.gpsLocation) {
+                    return false; // Exclude products from sellers without GPS location
+                }
+                
+                const sellerLocation = product.seller.gpsLocation;
+                let sellerLat, sellerLng;
+                
+                // Handle different formats of location data
+                if (typeof sellerLocation === 'object') {
+                    if (sellerLocation.hasOwnProperty('latitude') && sellerLocation.hasOwnProperty('longitude')) {
+                        sellerLat = sellerLocation.latitude;
+                        sellerLng = sellerLocation.longitude;
+                    } else if (sellerLocation.hasOwnProperty('lat') && sellerLocation.hasOwnProperty('lng')) {
+                        sellerLat = sellerLocation.lat;
+                        sellerLng = sellerLocation.lng;
+                    } else if (Array.isArray(sellerLocation) && sellerLocation.length >= 2) {
+                        [sellerLat, sellerLng] = sellerLocation;
+                    }
+                }
+                
+                if (sellerLat === undefined || sellerLng === undefined) {
+                    return false; // Exclude products with invalid location data
+                }
+                
+                const distance = calculateDistance(userLat, userLng, sellerLat, sellerLng);
+                return distance <= 4; // Only include products within 4km
+                // return true;
+            });
+        }
         
         // Format the response
-        const formattedProducts = filteredProducts.map(product => ({
+        const formattedProducts = distanceFilteredProducts.map(product => ({
             id: product.id,
             name: product.name,
             price: Number(product.price) + Number(product.addedCost),
@@ -130,7 +142,9 @@ export async function GET(request) {
             categories: product.categories,
             sellerId: product.sellerId,
             restaurantName: product.seller.restaurantName || product.seller.username,
-            isFeatured: product.isFeatured
+            isFeatured: product.isFeatured,
+            startTime: product.startTime,
+            endTime: product.endTime
         }));
         
         return NextResponse.json(formattedProducts);

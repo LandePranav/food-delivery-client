@@ -8,12 +8,14 @@ import api from "@/lib/axios"
 import { Loader2 } from "lucide-react"
 import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { context } from "@/context/contextProvider"
 
 // Create a separate component for the menu content
 function MenuContent() {
   const searchParams = useSearchParams()
   const searchQuery = searchParams.get("search")
   const categoryFilter = searchParams.get("category")
+  const { userLocation } = useContext(context)
   
   const [searchText, setSearchText] = useState(searchQuery || "")
   const [allProducts, setAllProducts] = useState([])
@@ -53,7 +55,14 @@ function MenuContent() {
     const fetchProducts = async () => {
       setIsLoading(true)
       try {
-        const response = await api.get("/products")
+        // Build query parameters
+        const params = new URLSearchParams()
+        if (userLocation) {
+          params.append('lat', userLocation.latitude.toString())
+          params.append('lng', userLocation.longitude.toString())
+        }
+        
+        const response = await api.get(`/products?${params.toString()}`)
         if (response.status === 200) {
           setAllProducts(response.data)
           setIsLoading(false)
@@ -64,7 +73,7 @@ function MenuContent() {
       }
     }
     fetchProducts()
-  }, [])
+  }, [userLocation]) // Re-fetch when user location changes
 
   // Filter products based on search query, category, and price
   useEffect(() => {

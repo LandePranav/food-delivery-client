@@ -5,12 +5,14 @@ import SpecialDishesCarousel from "@/components/home/special-dishes-carousel"
 import { Categories } from "@/components/home/categories"
 import PopularFoods from "@/components/home/popular-foods"
 import NearbyRestaurants from "@/components/home/nearby-restaurants"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useContext } from "react"
 import api from "@/lib/axios"
+import { context } from "@/context/contextProvider"
 
 export default function Home() {
   const [products, setProducts] = useState([])
   const [isLoading, setIsLoading] = useState(true)
+  const { userLocation } = useContext(context)
   const [categories, setCategories] = useState([
     { name: "All", emoji: "🍽️" },
     { name: "Pure-Veg", emoji: "🥬" },
@@ -32,7 +34,15 @@ export default function Home() {
       try {
         console.log("Fetching products for home page") // Debug
         setIsLoading(true)
-        const response = await api.get("/products")
+        
+        // Build query parameters
+        const params = new URLSearchParams()
+        if (userLocation) {
+          params.append('lat', userLocation.latitude.toString())
+          params.append('lng', userLocation.longitude.toString())
+        }
+        
+        const response = await api.get(`/products?${params.toString()}`)
         if (response.status === 200) {
           console.log("Products fetched successfully:", response.data.length) // Debug
           setProducts(response.data)
@@ -46,7 +56,7 @@ export default function Home() {
       }
     }
     fetchProducts()
-  }, [])
+  }, [userLocation]) // Re-fetch when user location changes
 
   // Debug render counts
   useEffect(() => {

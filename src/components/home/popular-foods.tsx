@@ -42,7 +42,7 @@ interface PopularFoodsProps {
 export default function PopularFoods({ items = [], limit = 4 }: PopularFoodsProps) {
   const router = useRouter()
   const [popularItems, setPopularItems] = useState<FoodItem[]>(items)
-  const { addToCart } = useContext(context)
+  const { addToCart, userLocation } = useContext(context)
   const [loading, setLoading] = useState(true)
   const [sellerNames, setSellerNames] = useState<Record<string, string>>({})
   const [sellers, setSellers] = useState<Seller[]>([])
@@ -88,7 +88,16 @@ export default function PopularFoods({ items = [], limit = 4 }: PopularFoodsProp
     } else {
       const fetchPopularItems = async () => {
         try {
-          const response = await api.get("/products?sort=popularity&limit=" + limit)
+          // Build query parameters
+          const params = new URLSearchParams()
+          params.append('sort', 'popularity')
+          params.append('limit', limit.toString())
+          if (userLocation) {
+            params.append('lat', userLocation.latitude.toString())
+            params.append('lng', userLocation.longitude.toString())
+          }
+          
+          const response = await api.get(`/products?${params.toString()}`)
           if (response.status === 200) {
             setPopularItems(response.data)
           }
@@ -101,7 +110,7 @@ export default function PopularFoods({ items = [], limit = 4 }: PopularFoodsProp
       
       fetchPopularItems()
     }
-  }, [items, limit])
+  }, [items, limit, userLocation]) // Re-fetch when user location changes
 
   // Generate random intervals for each item when they are loaded
   useEffect(() => {

@@ -96,6 +96,8 @@ model Product {
   isFeatured  Boolean  @default(false)
   addedCost   Int      @default(0)
   priority    Int      @default(0)
+  startTime   DateTime? // UTC time for start of time slot
+  endTime     DateTime? // UTC time for end of time slot
   seller      Seller   @relation(fields: [sellerId], references: [id])
 
   @@map("products")
