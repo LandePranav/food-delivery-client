@@ -13,6 +13,8 @@ export default function Home() {
   const [products, setProducts] = useState([])
   const [isLoading, setIsLoading] = useState(true)
   const { userLocation } = useContext(context)
+  const [sellers, setSellers] = useState([])
+  const [sellersLoading, setSellersLoading] = useState(true)
   const [categories, setCategories] = useState([
     { name: "All", emoji: "🍽️" },
     { name: "Pure-Veg", emoji: "🥬" },
@@ -31,16 +33,15 @@ export default function Home() {
 
   useEffect(() => {
     const fetchProducts = async () => {
+      if (!userLocation) return
       try {
         console.log("Fetching products for home page") // Debug
         setIsLoading(true)
         
         // Build query parameters
         const params = new URLSearchParams()
-        if (userLocation) {
-          params.append('lat', userLocation.latitude.toString())
-          params.append('lng', userLocation.longitude.toString())
-        }
+        params.append('lat', userLocation.latitude.toString())
+        params.append('lng', userLocation.longitude.toString())
         
         const response = await api.get(`/products?${params.toString()}`)
         if (response.status === 200) {
@@ -58,6 +59,30 @@ export default function Home() {
     fetchProducts()
   }, [userLocation]) // Re-fetch when user location changes
 
+  // Fetch sellers once for NearbyRestaurants to avoid internal refetch loops
+  useEffect(() => {
+    let cancelled = false
+    const fetchSellers = async () => {
+      try {
+        setSellersLoading(true)
+        const response = await api.get("/sellers")
+        if (!cancelled && response.status === 200) {
+          setSellers(Array.isArray(response.data) ? response.data : [])
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error("Error fetching sellers:", error)
+          setSellers([])
+        }
+      } finally {
+        if (!cancelled) setSellersLoading(false)
+      }
+    }
+
+    fetchSellers()
+    return () => { cancelled = true }
+  }, [])
+
   // Debug render counts
   useEffect(() => {
     console.log("Products length:", products.length)
@@ -73,10 +98,10 @@ export default function Home() {
         <SpecialDishesCarousel />
 
         {/* Popular Foods */}
-        <PopularFoods items={products} limit={4} />
+        <PopularFoods items={products} limit={6} />
 
         {/* Nearby Restaurants */}
-        <NearbyRestaurants />
+        <NearbyRestaurants restaurants={sellers} />
       </div>
     </PageLayout>
   )

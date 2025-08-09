@@ -2,7 +2,7 @@
 
 // import Image from "next/image"
 // import { ChevronLeft, ChevronRight } from "lucide-react"
-import { useState, useEffect, useContext } from "react"
+import { useState, useEffect, useContext, useRef } from "react"
 import api from "@/lib/axios"
 import { context } from "@/context/contextProvider"
 import { Button } from "@/components/ui/button"
@@ -31,11 +31,11 @@ export default function SpecialDishesCarousel() {
   const [currentIndex, setCurrentIndex] = useState(0)
   const [loading, setLoading] = useState(true)
   const { setCartItems, userLocation } = useContext(context)
-  const [sellerNames, setSellerNames] = useState<Record<string, string>>({})
   const [vibratingItemId, setVibratingItemId] = useState<string | null>(null)
   const [currentImageIndices, setCurrentImageIndices] = useState<Record<string, number>>({})
   const [slideIntervals, setSlideIntervals] = useState<Record<string, number>>({})
   const [slidesPerView, setSlidesPerView] = useState(1)
+  const fetchGuardRef = useRef(false)
 
   // Calculate card width based on slidesPerView
   const cardWidth = 100 / slidesPerView
@@ -55,56 +55,39 @@ export default function SpecialDishesCarousel() {
 
   useEffect(() => {
     const fetchSpecialDishes = async () => {
+      if (fetchGuardRef.current) return
+      // Require location before fetching; do not flip the guard yet
+      if (!userLocation) return
+      fetchGuardRef.current = true
       try {
         // Build query parameters
         const params = new URLSearchParams()
-        if (userLocation) {
-          params.append('lat', userLocation.latitude.toString())
-          params.append('lng', userLocation.longitude.toString())
-        }
+        // Always request featured dishes
+        params.append("featured", "true")
         
+        params.append('lat', userLocation.latitude.toString())
+        params.append('lng', userLocation.longitude.toString())
         const response = await api.get(`/products?${params.toString()}`)
         if (response.status === 200) {
           if (response.data && Array.isArray(response.data) && response.data.length > 0) {
-            const filteredDishes = response.data.filter((dish: Dish) => dish.isFeatured === true)
-            setSpecialDishes(filteredDishes)
+            // const filteredDishes = response.data.filter((dish: Dish) => dish.isFeatured === true)
+            const filteredDishes = response.data
+            setSpecialDishes(filteredDishes ?? [])
             
             // Initialize image indices for each dish
             const initialIndices: Record<string, number> = {}
             const initialIntervals: Record<string, number> = {}
             
-            filteredDishes.forEach((dish: Dish) => {
-              initialIndices[dish.id] = 0
-              initialIntervals[dish.id] = Math.floor(Math.random() * 5000) + 5000
-            })
+            if(filteredDishes.length > 0){
+              filteredDishes.forEach((dish: Dish) => {
+                initialIndices[dish.id] = 0
+                initialIntervals[dish.id] = Math.floor(Math.random() * 5000) + 5000
+              })
+            }
             
             setCurrentImageIndices(initialIndices)
             setSlideIntervals(initialIntervals)
             
-            // Get unique seller IDs
-            const sellerIds = [...new Set(response.data
-              .filter((dish: Dish) => dish.sellerId)
-              .map((dish: Dish) => dish.sellerId))]
-            
-            // Fetch seller names if we have seller IDs
-            if (sellerIds.length > 0) {
-              try {
-                const sellersResponse = await api.get("/sellers")
-                if (sellersResponse.status === 200) {
-                  const sellersMap: Record<string, string> = {}
-                  
-                  sellersResponse.data.forEach((seller: Record<string, string | number | boolean | Record<string, string>>) => {
-                    if (sellerIds.includes(seller.id as string)) {
-                      sellersMap[seller.id as string] = (seller.restaurantName as string) || (seller.name as string) || "Unknown Restaurant"
-                    }
-                  })
-                  
-                  setSellerNames(sellersMap)
-                }
-              } catch (error) {
-                console.error("Error fetching sellers:", error)
-              }
-            }
           } else {
             console.error("No special dishes data received:", response.data)
             setSpecialDishes([])
@@ -136,7 +119,7 @@ export default function SpecialDishesCarousel() {
     handleResize()
     window.addEventListener('resize', handleResize)
     return () => window.removeEventListener('resize', handleResize)
-  }, [userLocation]) // Re-fetch when user location changes
+  }, [userLocation])
 
   // Image slideshow effect
   useEffect(() => {
@@ -184,10 +167,7 @@ export default function SpecialDishesCarousel() {
     return "/placeholder.jpg"
   }
 
-  const getSellerName = (sellerId?: string) => {
-    if (!sellerId) return "Unknown Restaurant"
-    return sellerNames[sellerId] || "Unknown Restaurant"
-  }
+  const getSellerName = (dish: Dish) => dish.restaurantName || "Unknown Restaurant"
 
   // Function to navigate to product detail page
   const navigateToProductDetail = (id: string) => {
@@ -260,7 +240,7 @@ export default function SpecialDishesCarousel() {
                   </div>
                   <div className="p-3 flex-1 flex flex-col dark:bg-[#1E1E1E]">
                     <h3 className="font-bold text-gray-800 dark:text-white text-sm line-clamp-1">{dish.name}</h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{getSellerName(dish.sellerId)}</p>
+                    <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{getSellerName(dish)}</p>
                     <div className="mt-2 flex items-center justify-between">
                       <span className="font-bold text-orange-500 dark:text-white">₹ {dish.price?.toFixed(2) || "0.00"}</span>
                       <Button

@@ -16,6 +16,7 @@ interface FoodItem {
   id: string
   name: string
   restaurant?: string
+  restaurantName?: string
   sellerId?: string
   price: number
   rating?: number
@@ -27,12 +28,7 @@ interface FoodItem {
   categoryId?: string
 }
 
-interface Seller {
-  id: string
-  name: string
-  restaurantName?: string
-  specialty?: string
-}
+// Seller interface removed; we no longer fetch sellers here
 
 interface PopularFoodsProps {
   items?: FoodItem[]
@@ -44,42 +40,15 @@ export default function PopularFoods({ items = [], limit = 4 }: PopularFoodsProp
   const [popularItems, setPopularItems] = useState<FoodItem[]>(items)
   const { addToCart, userLocation } = useContext(context)
   const [loading, setLoading] = useState(true)
-  const [sellerNames, setSellerNames] = useState<Record<string, string>>({})
-  const [sellers, setSellers] = useState<Seller[]>([])
   const [vibratingItemId, setVibratingItemId] = useState<string | null>(null)
   const [currentImageIndices, setCurrentImageIndices] = useState<Record<string, number>>({})
   const [isSwiping, setIsSwiping] = useState<Record<string, boolean>>({})
   const [touchStartX, setTouchStartX] = useState<Record<string, number>>({})
   const [slideIntervals, setSlideIntervals] = useState<Record<string, number>>({})
   
-  // Fetch sellers on component mount (only once)
-  useEffect(() => {
-    const fetchSellers = async () => {
-      try {
-        const response = await api.get("/sellers")
-        if (response.status === 200 && Array.isArray(response.data)) {
-          setSellers(response.data)
-          // Create a mapping of seller IDs to names
-          const namesMap: Record<string, string> = {}
-          response.data.forEach((seller: Seller) => {
-            namesMap[seller.id] = seller.restaurantName || seller.name || "Unknown Restaurant"
-          })
-          
-          setSellerNames(namesMap)
-        }
-      } catch (error) {
-        console.error("Error fetching sellers:", error)
-      }
-    }
-    
-    fetchSellers()
-  }, [])
+  // Removed seller list fetch; rely on restaurantName within product payloads
 
-  useEffect(() => {
-    if(sellers.length > 0){
-      console.log("Sellers fetched successfully")
-    }
-  }, [sellers])
+  // Debug hook removed for sellers
   
   useEffect(() => {
     if (items.length > 0) {
@@ -88,14 +57,17 @@ export default function PopularFoods({ items = [], limit = 4 }: PopularFoodsProp
     } else {
       const fetchPopularItems = async () => {
         try {
+          // Require location before fetching
+          if (!userLocation) {
+            setLoading(false)
+            return
+          }
           // Build query parameters
           const params = new URLSearchParams()
           params.append('sort', 'popularity')
           params.append('limit', limit.toString())
-          if (userLocation) {
-            params.append('lat', userLocation.latitude.toString())
-            params.append('lng', userLocation.longitude.toString())
-          }
+          params.append('lat', userLocation.latitude.toString())
+          params.append('lng', userLocation.longitude.toString())
           
           const response = await api.get(`/products?${params.toString()}`)
           if (response.status === 200) {
@@ -176,10 +148,7 @@ export default function PopularFoods({ items = [], limit = 4 }: PopularFoodsProp
   }
   
   // Helper function to get seller name
-  const getSellerName = (sellerId?: string) => {
-    if (!sellerId) return "Restaurant"
-    return sellerNames[sellerId] || "Restaurant"
-  }
+  const getSellerName = (item: FoodItem) => item.restaurantName || "Restaurant"
   
   // Format price with rupee symbol
   const formatPrice = (price: number): string => {
@@ -368,7 +337,7 @@ export default function PopularFoods({ items = [], limit = 4 }: PopularFoodsProp
 
                     
                     <p className="text-xs text-gray-700 dark:text-gray-300 mt-1 pb-1 text-muted-foreground">
-                      {getSellerName(item.sellerId)}
+                      {getSellerName(item)}
                     </p>
 
                     <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mb-1">

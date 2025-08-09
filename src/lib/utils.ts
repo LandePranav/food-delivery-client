@@ -6,25 +6,35 @@ export function cn(...inputs: ClassValue[]) {
 }
 
 // Function to check if current time is within a product's time slot
-export function isWithinTimeSlot(startTime: Date | null, endTime: Date | null, currentTime: Date): boolean {
+export function isWithinTimeSlot(
+  startTime: Date | null,
+  endTime: Date | null,
+  currentTime: Date
+): boolean {
   // If no time slot is specified, product is always available
   if (!startTime || !endTime) {
     return true;
   }
 
-  // Convert all times to UTC for comparison
-  const currentUTC = new Date(currentTime.getTime());
-  const startUTC = new Date(startTime.getTime());
-  const endUTC = new Date(endTime.getTime());
+  // Compare TIME-OF-DAY only (UTC), ignore the actual calendar date stored in DB
+  const toMinutesUtc = (d: Date) => d.getUTCHours() * 60 + d.getUTCMinutes();
 
-  // Handle time slots that span across midnight
-  if (endUTC < startUTC) {
-    // Time slot spans midnight (e.g., 22:00 to 06:00)
-    return currentUTC >= startUTC || currentUTC <= endUTC;
-  } else {
-    // Regular time slot within the same day
-    return currentUTC >= startUTC && currentUTC <= endUTC;
+  const currentMinutes = toMinutesUtc(currentTime);
+  const startMinutes = toMinutesUtc(startTime);
+  const endMinutes = toMinutesUtc(endTime);
+
+  // If start and end are the same minute, treat as always available
+  if (startMinutes === endMinutes) {
+    return true;
   }
+
+  // Slot does not wrap past midnight (e.g., 09:00–18:00)
+  if (endMinutes > startMinutes) {
+    return currentMinutes >= startMinutes && currentMinutes <= endMinutes;
+  }
+
+  // Slot wraps past midnight (e.g., 22:00–06:00)
+  return currentMinutes >= startMinutes || currentMinutes <= endMinutes;
 }
 
 // Haversine formula to calculate distance between two GPS points in kilometers

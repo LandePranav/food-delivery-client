@@ -9,12 +9,10 @@ import { motion } from "motion/react";
 import { CldImage } from "next-cloudinary";
 import { useRouter } from "next/navigation";
 
-export default function Card({ id, category, image, name, description, price, imageUrls, sellerId, imageUrl }) {
+export default function Card({ id, category, image, name, description, price, imageUrls, sellerId, imageUrl, restaurantName }) {
   const router = useRouter();
   const {cartItems, addToCart: addItemToCart} = useContext(context);
   const [isVibrating, setIsVibrating] = useState(false);
-  const [sellerName, setSellerName] = useState("");
-  const [isLoading, setIsLoading] = useState(true);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [touchStartX, setTouchStartX] = useState(0);
   const [isSwiping, setIsSwiping] = useState(false);
@@ -24,44 +22,7 @@ export default function Card({ id, category, image, name, description, price, im
     return Math.floor(Math.random() * 4000) + 3000; // Random time between 3-7 seconds
   });
 
-  // Fetch seller name when component mounts
-  useEffect(() => {
-    const controller = new AbortController();
-    const signal = controller.signal;
-    
-    const fetchSellerName = async () => {
-      if (sellerId) {
-        try {
-          setIsLoading(true);
-          const response = await fetch(`/api/sellers/${sellerId}`, { signal });
-          if (response.ok) {
-            const data = await response.json();
-            setSellerName(data.restaurantName || data.name || "Restaurant");
-          } else {
-            console.log(`Error fetching seller with ID ${sellerId}: ${response.status}`);
-            setSellerName("Restaurant");
-          }
-        } catch (error) {
-          if (error.name !== 'AbortError') {
-            console.error("Error fetching seller name:", error);
-            setSellerName("Restaurant");
-          }
-        } finally {
-          setIsLoading(false);
-        }
-      } else {
-        setSellerName("Restaurant");
-        setIsLoading(false);
-      }
-    };
-    
-    fetchSellerName();
-    
-    // Clean up function to prevent memory leaks and ongoing requests
-    return () => {
-      controller.abort();
-    };
-  }, [sellerId]);
+  // Removed per-card seller fetch; we rely on restaurantName from the products API
   // Image slideshow effect with unique interval time
   useEffect(() => {
     let intervalId;
@@ -260,7 +221,7 @@ export default function Card({ id, category, image, name, description, price, im
         </h3>
         
         <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1 pb-0.5">
-          {isLoading ? "Loading..." : sellerName}
+          {restaurantName || "Restaurant"}
         </p>
         
         <p className="text-xs text-gray-600 dark:text-gray-400 mt-1 line-clamp-2 flex-grow">

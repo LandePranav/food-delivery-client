@@ -37,10 +37,12 @@ export default function RestaurantsPage() {
             }
           })
           
-          // Filter restaurants within 5km range
-          formattedRestaurants = formattedRestaurants.filter(restaurant => 
-            restaurant.calculatedDistance !== null && restaurant.calculatedDistance <= 4
-          )
+          // Apply distance filter only when user location is available
+          if (userLocation) {
+            formattedRestaurants = formattedRestaurants.filter(restaurant => 
+              restaurant.calculatedDistance !== null && restaurant.calculatedDistance <= 4
+            )
+          }
           
           // Sort by distance if available
           formattedRestaurants.sort((a, b) => {

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useContext } from "react"
+import { useState, useEffect, useContext, useRef, useMemo } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { Store } from "lucide-react"
@@ -29,7 +29,8 @@ interface Restaurant {
 }
 
 interface NearbyRestaurantsProps {
-  restaurants?: Restaurant[]
+  // When provided, these are raw sellers from the API
+  restaurants?: SellerData[]
 }
 
 // Add this interface to define the seller shape
@@ -54,85 +55,87 @@ interface SellerData {
 export default function NearbyRestaurants({ restaurants = [] }: NearbyRestaurantsProps) {
   const [nearbyRestaurants, setNearbyRestaurants] = useState<Restaurant[]>([])
   const [loading, setLoading] = useState(true)
-  const [hasCalledApi, setHasCalledApi] = useState(false)
+  const [sellers, setSellers] = useState<SellerData[]>([])
   const { userLocation, getDistanceFromUser } = useContext(context)
-  
-  useEffect(() => {
-    // If we have restaurants props, use those instead of fetching
-    if (restaurants && restaurants.length > 0) {
-      setNearbyRestaurants(restaurants)
-      setLoading(false)
-      return;
-    }
-    
-    // Only fetch if we haven't already done so
-    if (!hasCalledApi) {
-      const fetchNearbyRestaurants = async () => {
-        try {
-          setLoading(true)
-          console.log("Fetching nearby restaurants") // Debug
-          const response = await api.get("/sellers")
-          if (response.status === 200) {
-            console.log("Sellers response:", response.data) // Debug
-            
-            if (response.data && Array.isArray(response.data) && response.data.length > 0) {
-              const formattedRestaurants = response.data.map((seller: SellerData) => {
-                // Calculate distance if user location and seller GPS location are available
-                let calculatedDistance = null
-                if (seller.gpsLocation && userLocation) {
-                  calculatedDistance = getDistanceFromUser(seller.gpsLocation)
-                }
-                
-                return {
-                  id: seller.id,
-                  name: seller.restaurantName || seller.name,
-                  cuisine: seller.specialty || "Various",
-                  gpsLocation: seller.gpsLocation,
-                  calculatedDistance,
-                  // Format distance for display: either calculated or a default value
-                  distance: calculatedDistance 
-                    ? `${calculatedDistance.toFixed(1)} km away` 
-                    : seller.distance || "1.5 miles away",
-                  rating: seller.rating || 4.5,
-                  reviewCount: seller.reviewCount || 100,
-                  imageUrl: seller.imageUrl || null,
-                  profile: seller.profile || null,
-                  tags: seller.tags || [],
-                  deliveryTime: seller.deliveryTime || "15-30 min"
-                }
-              })
-              
-              // Filter restaurants within 5km range
-              const nearbyRestaurants = formattedRestaurants.filter(restaurant => 
-                restaurant.calculatedDistance !== null && restaurant.calculatedDistance <= 5
-              )
-              
-              // Sort by distance if calculated
-              nearbyRestaurants.sort((a: Restaurant, b: Restaurant) => {
-                const distA = a.calculatedDistance ?? Infinity
-                const distB = b.calculatedDistance ?? Infinity
-                return distA - distB
-              })
-              
-              console.log("Formatted restaurants:", nearbyRestaurants) // Debug
-              setNearbyRestaurants(nearbyRestaurants)
-            } else {
-              console.log("No restaurants data found")
-              setNearbyRestaurants([])
-            }
-          }
-        } catch (error) {
-          console.error("Error fetching nearby restaurants:", error)
-          setNearbyRestaurants([])
-        } finally {
-          setLoading(false)
-          setHasCalledApi(true)
-        }
+  const fetchedRef = useRef(false)
+  const hasRestaurants = useMemo(() => restaurants.length > 0, [restaurants])
+  const MAX_DISTANCE_KM = 4
+
+  const mapSellersToRestaurants = useMemo(() => (sourceSellers: SellerData[]): Restaurant[] => {
+    const formatted = sourceSellers.map((seller: SellerData) => {
+      let calculatedDistance: number | null = null
+      if (seller.gpsLocation && userLocation) {
+        calculatedDistance = getDistanceFromUser(seller.gpsLocation) as number | null
       }
-      
-      fetchNearbyRestaurants()
+      return {
+        id: seller.id,
+        name: seller.restaurantName || seller.name,
+        cuisine: seller.specialty || "Various cuisines",
+        gpsLocation: seller.gpsLocation,
+        calculatedDistance,
+        distance: calculatedDistance
+          ? `${calculatedDistance.toFixed(1)} km away`
+          : seller.distance || "",
+        rating: seller.rating || 4.5,
+        reviewCount: seller.reviewCount || 100,
+        imageUrl: seller.imageUrl || null,
+        profile: seller.profile || null,
+        tags: seller.tags || [],
+        deliveryTime: seller.deliveryTime || "15-30 min"
+      } as Restaurant
+    })
+
+    const filtered = userLocation
+      ? formatted.filter(r => r.calculatedDistance !== null && (r.calculatedDistance as number) <= MAX_DISTANCE_KM)
+      : formatted
+
+    filtered.sort((a: Restaurant, b: Restaurant) => {
+      const distA = a.calculatedDistance ?? Infinity
+      const distB = b.calculatedDistance ?? Infinity
+      return distA - distB
+    })
+
+    return filtered
+  }, [userLocation, getDistanceFromUser])
+
+  // Fetch sellers once (unless restaurants are provided via props)
+  useEffect(() => {
+    if (hasRestaurants) {
+      setNearbyRestaurants(mapSellersToRestaurants(restaurants))
+      setLoading(false)
+      return
     }
-  }, [userLocation, getDistanceFromUser, restaurants, hasCalledApi])
+
+    let cancelled = false
+    const fetchSellers = async () => {
+      try {
+        setLoading(true)
+        const response = await api.get("/sellers")
+        if (!cancelled && response.status === 200 && Array.isArray(response.data)) {
+          setSellers(response.data)
+        }
+      } catch (error) {
+        if (!cancelled) {
+          console.error("Error fetching nearby restaurants:", error)
+          setSellers([])
+        }
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+
+    if (!fetchedRef.current) {
+      fetchedRef.current = true
+      fetchSellers()
+    }
+    return () => { cancelled = true }
+  }, [hasRestaurants, restaurants])
+
+  // Derive nearbyRestaurants whenever sellers or user location changes
+  useEffect(() => {
+    if (hasRestaurants) return
+    setNearbyRestaurants(mapSellersToRestaurants(sellers))
+  }, [sellers, hasRestaurants, mapSellersToRestaurants])
 
   // Helper function to get the best available image URL
   const getImageUrl = (restaurant: Restaurant): string => {
@@ -200,7 +203,7 @@ export default function NearbyRestaurants({ restaurants = [] }: NearbyRestaurant
               
               <div className="flex-1">
                 <h3 className="font-medium text-base dark:text-white">{restaurant.name}</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">{restaurant.cuisine} • {restaurant.distance}</p>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{restaurant.cuisine}</p>
                 <div className="flex items-center justify-between mt-2">
                   {/* <div className="flex items-center">
                     <Star className="h-4 w-4 fill-yellow-400 text-yellow-400 dark:fill-white dark:text-white mr-1" />
@@ -208,8 +211,8 @@ export default function NearbyRestaurants({ restaurants = [] }: NearbyRestaurant
                     <span className="ml-1 text-sm text-gray-500 dark:text-gray-400">({restaurant.reviewCount})</span>
                   </div> */}
                   
-                  <div className="text-sm text-gray-500 dark:text-gray-400">
-                    {restaurant.deliveryTime}
+                  <div className="text-sm text-gray-700 dark:text-gray-300 font-medium">
+                    {typeof restaurant.calculatedDistance === 'number' ? `${restaurant.calculatedDistance.toFixed(1)} km` : ''}
                   </div>
                 </div>
               </div>

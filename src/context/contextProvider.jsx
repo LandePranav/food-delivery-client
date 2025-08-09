@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { createContext } from "react";
 
 export const context = createContext();
@@ -50,8 +50,25 @@ export default function ContextProvider({children}) {
         }
     }, [cartItems]);
 
+    // Initialize from last known location ASAP to avoid fetch races
     useEffect(() => {
-        // Get user's current location
+        if (typeof window === 'undefined') return;
+        try {
+            const storedLocation = localStorage.getItem('userLocation');
+            if (storedLocation) {
+                const parsed = JSON.parse(storedLocation);
+                if (parsed && typeof parsed.latitude === 'number' && typeof parsed.longitude === 'number') {
+                    setUserLocation(parsed);
+                    setLocationLoading(false);
+                }
+            }
+        } catch (err) {
+            // ignore JSON errors
+        }
+    }, []);
+
+    useEffect(() => {
+        // Try to get user's current location (updates stored one if available)
         if (typeof window !== 'undefined' && navigator.geolocation) {
             navigator.geolocation.getCurrentPosition(
                 (position) => {
@@ -66,13 +83,8 @@ export default function ContextProvider({children}) {
                 (error) => {
                     console.error("Error getting location:", error);
                     setLocationError(error.message);
-                    setLocationLoading(false);
-                    
-                    // Try to get location from localStorage if available
-                    const storedLocation = localStorage.getItem('userLocation');
-                    if (storedLocation) {
-                        setUserLocation(JSON.parse(storedLocation));
-                    }
+                    // If we already had a stored location, keep it and don't override loading
+                    setLocationLoading((prev) => (prev ? false : prev));
                 },
                 { enableHighAccuracy: true, timeout: 15000, maximumAge: 10000 }
             );
@@ -138,8 +150,8 @@ export default function ContextProvider({children}) {
         return cartItems.reduce((total, item) => total + (item.price * (item.quantity || 1)), 0);
     };
 
-    // Function to calculate distance between user and a given location
-    const getDistanceFromUser = (sellerLocation) => {
+    // Function to calculate distance between user and a given location (stable identity)
+    const getDistanceFromUser = useCallback((sellerLocation) => {
         if (!userLocation || !sellerLocation) return null;
         
         let sellerLatitude, sellerLongitude;
@@ -163,21 +175,37 @@ export default function ContextProvider({children}) {
             sellerLatitude,
             sellerLongitude
         );
-    };
+    }, [userLocation]);
+
+    const hasValidLocation = !!(userLocation && typeof userLocation.latitude === 'number' && typeof userLocation.longitude === 'number' && !(userLocation.latitude === 0 && userLocation.longitude === 0));
+
+    const contextValue = useMemo(() => ({
+        cartItems,
+        setCartItems,
+        addToCart,
+        removeFromCart,
+        removeItemCompletely,
+        calculateCartTotal,
+        userLocation,
+        locationError,
+        locationLoading,
+        getDistanceFromUser,
+        hasValidLocation,
+    }), [
+        cartItems,
+        addToCart,
+        removeFromCart,
+        removeItemCompletely,
+        calculateCartTotal,
+        userLocation,
+        locationError,
+        locationLoading,
+        getDistanceFromUser,
+        hasValidLocation,
+    ]);
 
     return(
-        <context.Provider value={{
-            cartItems, 
-            setCartItems,
-            addToCart,
-            removeFromCart,
-            removeItemCompletely,
-            calculateCartTotal,
-            userLocation, 
-            locationError, 
-            locationLoading,
-            getDistanceFromUser
-        }}>
+        <context.Provider value={contextValue}>
             {children}
         </context.Provider>
     );

@@ -55,12 +55,12 @@ export default function RestaurantDetail({ params }) {
         }
         
         // Fetch products from this restaurant with user location
+        // Require user location before fetching products
+        if (!userLocation) return
         const params = new URLSearchParams()
         params.append('sellerId', id)
-        if (userLocation) {
-          params.append('lat', userLocation.latitude.toString())
-          params.append('lng', userLocation.longitude.toString())
-        }
+        params.append('lat', userLocation.latitude.toString())
+        params.append('lng', userLocation.longitude.toString())
         
         const productsResponse = await api.get(`/products?${params.toString()}`)
         if (productsResponse.status === 200) {

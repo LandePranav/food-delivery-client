@@ -12,6 +12,16 @@ export async function GET(request) {
         const limit = parseInt(searchParams.get('limit') || '20', 10);
         const userLat = parseFloat(searchParams.get('lat'));
         const userLng = parseFloat(searchParams.get('lng'));
+        const featuredParam = searchParams.get('featured');
+        const isFeaturedFilter = featuredParam === 'true' || featuredParam === '1' || featuredParam === 'yes';
+
+        // Enforce mandatory location for any product fetch
+        if (Number.isNaN(userLat) || Number.isNaN(userLng)) {
+            return NextResponse.json(
+                { error: "Latitude and longitude are required for fetching products" },
+                { status: 400 }
+            );
+        }
         
         // Get current UTC time
         const currentTime = new Date();
@@ -43,6 +53,9 @@ export async function GET(request) {
         // Add sellerId filter if provided
         if (sellerId) {
             whereClause.sellerId = sellerId;
+        }
+        if (isFeaturedFilter) {
+            whereClause.isFeatured = true;
         }
         
         // Add category filter if provided by user
@@ -100,7 +113,10 @@ export async function GET(request) {
 
         // Filter products by distance if user location is provided
         let distanceFilteredProducts = timeFilteredProducts;
-        if (userLat && userLng && !isNaN(userLat) && !isNaN(userLng)) {
+        const hasLat = !Number.isNaN(userLat);
+        const hasLng = !Number.isNaN(userLng);
+        // Always apply distance filter when coordinates are provided (mandatory rule)
+        if (hasLat && hasLng) {
             distanceFilteredProducts = timeFilteredProducts.filter(product => {
                 if (!product.seller.gpsLocation) {
                     return false; // Exclude products from sellers without GPS location

@@ -53,14 +53,13 @@ function MenuContent() {
   // Load initial products
   useEffect(() => {
     const fetchProducts = async () => {
+      if (!userLocation) return
       setIsLoading(true)
       try {
         // Build query parameters
         const params = new URLSearchParams()
-        if (userLocation) {
-          params.append('lat', userLocation.latitude.toString())
-          params.append('lng', userLocation.longitude.toString())
-        }
+        params.append('lat', userLocation.latitude.toString())
+        params.append('lng', userLocation.longitude.toString())
         
         const response = await api.get(`/products?${params.toString()}`)
         if (response.status === 200) {
@@ -197,6 +196,7 @@ function MenuContent() {
                 name={item.name} 
                 description={item.description} 
                 price={item.price} 
+                restaurantName={item.restaurantName}
               />
             </div>
           ))}
