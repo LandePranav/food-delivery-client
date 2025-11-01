@@ -1,50 +1,36 @@
-import { NextResponse } from "next/server";
+import {NextResponse } from "next/server";
 import prisma from "@/lib/prismadb";
+import RestoService from "@/services/restoService";
 
-export async function GET() {
+export async function GET(request) {
   try {
-    // Fetch all sellers with their restaurant information
-    const sellers = await prisma.seller.findMany({
-      select: {
-        id: true,
-        username: true,
-        restaurantName: true,
-        speciality: true,
-        address: true,
-        phone: true,
-        profile: true,
-        active: true,
-        gpsLocation: true,
-        // Include count of products for each seller
-        _count: {
-          select: {
-            products: true,
-          },
-        },
-        // Explicitly excluding bankDetails
-      },
-      where: {
-        active: true,
-      },
-      orderBy: {
-        restaurantName: 'asc',
-      },
-    });
 
-    // Format the response
-    const formattedSellers = sellers.map(seller => ({
-      id: seller.id,
-      name: seller.username,
-      restaurantName: seller.restaurantName || seller.username,
-      specialty: seller.speciality || 'Various cuisines',
-      address: seller.address || 'Address not available',
-      phone: seller.phone,
-      profile: seller.profile,
-      gpsLocation: seller.gpsLocation,
-      productCount: seller._count.products,
-    }));
+    const url = new URL(request.url);
+    const searchQuery = (url.searchParams.get("searchQuery") || '').toLowerCase();
+    const page = parseInt(url.searchParams.get("page", 1))
+    const limit = parseInt(url.searchParams.get("limit", 9))
+    const lat = parseFloat(url.searchParams.get("lat"));
+    const lng = parseFloat(url.searchParams.get("lng"));
 
-    return NextResponse.json(formattedSellers);
+    if (Number.isNaN(lat) || Number.isNaN(lng)) {
+      return NextResponse.json(
+        { error: "Latitude and longitude are required" },
+        { status: 400 }
+      );
+    }
+
+    const formattedSellers = await RestoService.getNearbyRestaurants(
+      lat,
+      lng,
+      { page, limit, searchQuery },
+    );
+    
+    const hasNextPage = formattedSellers.length > limit;
+    if (hasNextPage) {
+      sellers.pop(); // Remove the extra item used to check for next page
+    }
+
+    return NextResponse.json({formattedSellers, pagination: { page, limit, hasNextPage }});
   } catch (error) {
     console.error("Error fetching sellers:", error);
     return NextResponse.json(
@@ -52,4 +38,4 @@ export async function GET() {
       { status: 500 }
     );
   }
-} 
+}

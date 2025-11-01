@@ -1,19 +1,23 @@
 import { NextResponse } from "next/server";
 // import { cookies } from "next/headers";
 import prisma from "@/lib/prismadb";
-import { isWithinTimeSlot, calculateDistance } from "@/lib/utils";
+import { isWithinTimeSlot } from "@/lib/utils";
+import RestoService from "@/services/restoService";
+
 
 export async function GET(request) {
     try {
         const { searchParams } = new URL(request.url);
         const sellerId = searchParams.get('sellerId');
-        const category = searchParams.get('category');
+        const category = (searchParams.get('category') || 'all').toLowerCase();
         const sort = searchParams.get('sort') || 'newest';
+        const page = parseInt(searchParams.get('page') || '1', 10);
         const limit = parseInt(searchParams.get('limit') || '20', 10);
         const userLat = parseFloat(searchParams.get('lat'));
         const userLng = parseFloat(searchParams.get('lng'));
         const featuredParam = searchParams.get('featured');
         const isFeaturedFilter = featuredParam === 'true' || featuredParam === '1' || featuredParam === 'yes';
+        const searchQuery = (searchParams.get('searchQuery') || '').toLowerCase();
 
         // Enforce mandatory location for any product fetch
         if (Number.isNaN(userLat) || Number.isNaN(userLng)) {
@@ -25,6 +29,14 @@ export async function GET(request) {
         
         // Get current UTC time
         const currentTime = new Date();
+
+        const nearBySellerIds = await RestoService.getNearbyRestaurants(
+            userLat,
+            userLng,
+            { page: 1, limit: 100 }, // Fetch a large number to cover all nearby sellers
+            true // onlyIds
+        );
+
         
         // Build the where clause for time slot filtering
         let whereClause = {
@@ -46,20 +58,38 @@ export async function GET(request) {
                             endTime: { not: null }
                         }
                     ]
-                }
+                },
+                { sellerId: { in: nearBySellerIds }}
             ]
         };
+
+        // Add search query filter if provided
+        if (searchQuery && searchQuery.length > 0) {
+            whereClause.AND.push({
+                OR: [
+                    { name: {
+                        contains: searchQuery,
+                        mode: 'insensitive'
+                    }},
+                    { description: {
+                        contains: searchQuery,
+                        mode: 'insensitive'
+                    }}
+                ]
+            });
+        }
         
         // Add sellerId filter if provided
-        if (sellerId) {
+        if (sellerId && sellerId.length > 0) {
             whereClause.sellerId = sellerId;
         }
+
         if (isFeaturedFilter) {
             whereClause.isFeatured = true;
         }
         
         // Add category filter if provided by user
-        if (category) {
+        if (category && category !== 'all') {
             whereClause.categories = {
                 has: category,
             };
@@ -68,7 +98,8 @@ export async function GET(request) {
         // Build the query
         const query = {
             where: whereClause,
-            take: limit,
+            take: limit + 1,
+            skip: (page - 1) * limit,
             include: {
                 seller: {
                     select: {
@@ -87,7 +118,6 @@ export async function GET(request) {
             // This is a placeholder for sorting by popularity
             // In a real app, you might have a views or orders count to sort by
             query.orderBy = { createdAt: 'desc' };
-            query.take = 7;
         } else if (sort === 'price-asc') {
             query.orderBy = { price: 'asc' };
         } else if (sort === 'price-desc') {
@@ -110,46 +140,8 @@ export async function GET(request) {
         const timeFilteredProducts = products.filter(product => {
             return isWithinTimeSlot(product.startTime, product.endTime, currentTime);
         });
-
-        // Filter products by distance if user location is provided
-        let distanceFilteredProducts = timeFilteredProducts;
-        const hasLat = !Number.isNaN(userLat);
-        const hasLng = !Number.isNaN(userLng);
-        // Always apply distance filter when coordinates are provided (mandatory rule)
-        if (hasLat && hasLng) {
-            distanceFilteredProducts = timeFilteredProducts.filter(product => {
-                if (!product.seller.gpsLocation) {
-                    return false; // Exclude products from sellers without GPS location
-                }
-                
-                const sellerLocation = product.seller.gpsLocation;
-                let sellerLat, sellerLng;
-                
-                // Handle different formats of location data
-                if (typeof sellerLocation === 'object') {
-                    if (sellerLocation.hasOwnProperty('latitude') && sellerLocation.hasOwnProperty('longitude')) {
-                        sellerLat = sellerLocation.latitude;
-                        sellerLng = sellerLocation.longitude;
-                    } else if (sellerLocation.hasOwnProperty('lat') && sellerLocation.hasOwnProperty('lng')) {
-                        sellerLat = sellerLocation.lat;
-                        sellerLng = sellerLocation.lng;
-                    } else if (Array.isArray(sellerLocation) && sellerLocation.length >= 2) {
-                        [sellerLat, sellerLng] = sellerLocation;
-                    }
-                }
-                
-                if (sellerLat === undefined || sellerLng === undefined) {
-                    return false; // Exclude products with invalid location data
-                }
-                
-                const distance = calculateDistance(userLat, userLng, sellerLat, sellerLng);
-                return distance <= 4; // Only include products within 4km
-                // return true;
-            });
-        }
         
-        // Format the response
-        const formattedProducts = distanceFilteredProducts.map(product => ({
+        const formattedProducts = timeFilteredProducts.map(product => ({
             id: product.id,
             name: product.name,
             price: Number(product.price) + Number(product.addedCost),
@@ -162,8 +154,17 @@ export async function GET(request) {
             startTime: product.startTime,
             endTime: product.endTime
         }));
+
+        const pagination = {
+            page,
+            limit,
+            hasNextPage: formattedProducts.length > limit
+        }
+        if (pagination.hasNextPage) {
+            formattedProducts.pop(); // Remove the extra item used to check for next page
+        }
         
-        return NextResponse.json(formattedProducts);
+        return NextResponse.json({formattedProducts, pagination});
     } catch (error) {
         console.error("Error fetching products:", error);
         return NextResponse.json(

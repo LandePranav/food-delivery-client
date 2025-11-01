@@ -1,6 +1,8 @@
 import { type ClassValue, clsx } from "clsx"
 import { twMerge } from "tailwind-merge"
 
+const EARTH_RADIUS_KM = 6371;
+
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
@@ -38,17 +40,19 @@ export function isWithinTimeSlot(
 }
 
 // Haversine formula to calculate distance between two GPS points in kilometers
-export function calculateDistance(lat1: number, lon1: number, lat2: number, lon2: number): number {
-  const toRad = (value: number) => (value * Math.PI) / 180;
+// Most accurate haversine implementation
+export function calculateDistance(lat1:number, lon1:number, lat2:number, lon2:number) {
+  const toRad = (deg:number) => (deg * Math.PI) / 180;
   
-  const R = 6371; // Radius of the earth in km
   const dLat = toRad(lat2 - lat1);
   const dLon = toRad(lon2 - lon1);
-  const a =
-    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
-    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) * Math.sin(dLon / 2);
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-  const distance = R * c; // Distance in km
   
-  return distance;
+  const a = 
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) *
+    Math.sin(dLon / 2) * Math.sin(dLon / 2);
+  
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  
+  return EARTH_RADIUS_KM * c; // Returns distance in km
 }

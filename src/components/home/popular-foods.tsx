@@ -35,55 +35,16 @@ interface PopularFoodsProps {
   limit?: number
 }
 
-export default function PopularFoods({ items = [], limit = 4 }: PopularFoodsProps) {
+export default function PopularFoods({ items=[]}: PopularFoodsProps) {
   const router = useRouter()
-  const [popularItems, setPopularItems] = useState<FoodItem[]>(items)
-  const { addToCart, userLocation } = useContext(context)
-  const [loading, setLoading] = useState(true)
+  const popularItems = items
+  const { addToCart} = useContext(context)
   const [vibratingItemId, setVibratingItemId] = useState<string | null>(null)
   const [currentImageIndices, setCurrentImageIndices] = useState<Record<string, number>>({})
   const [isSwiping, setIsSwiping] = useState<Record<string, boolean>>({})
   const [touchStartX, setTouchStartX] = useState<Record<string, number>>({})
   const [slideIntervals, setSlideIntervals] = useState<Record<string, number>>({})
   
-  // Removed seller list fetch; rely on restaurantName within product payloads
-
-  // Debug hook removed for sellers
-  
-  useEffect(() => {
-    if (items.length > 0) {
-      setPopularItems(items.slice(0, limit))
-      setLoading(false)
-    } else {
-      const fetchPopularItems = async () => {
-        try {
-          // Require location before fetching
-          if (!userLocation) {
-            setLoading(false)
-            return
-          }
-          // Build query parameters
-          const params = new URLSearchParams()
-          params.append('sort', 'popularity')
-          params.append('limit', limit.toString())
-          params.append('lat', userLocation.latitude.toString())
-          params.append('lng', userLocation.longitude.toString())
-          
-          const response = await api.get(`/products?${params.toString()}`)
-          if (response.status === 200) {
-            setPopularItems(response.data)
-          }
-        } catch (error) {
-          console.error("Error fetching popular items:", error)
-        } finally {
-          setLoading(false)
-        }
-      }
-      
-      fetchPopularItems()
-    }
-  }, [items, limit, userLocation]) // Re-fetch when user location changes
-
   // Generate random intervals for each item when they are loaded
   useEffect(() => {
     const intervals: Record<string, number> = {};
@@ -225,12 +186,10 @@ export default function PopularFoods({ items = [], limit = 4 }: PopularFoodsProp
         </Link>
       </div>
 
-      {loading ? (
-        <div className="flex justify-center py-8 bg-white dark:bg-[#1E1E1E] rounded-xl shadow-sm">
-          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-orange-500"></div>
-        </div>
-      ) : popularItems.length > 0 ? (
-        <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        
+      {
+        popularItems.length > 0 ? (
+          <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {popularItems.map((item) => (
             <div key={item.id} className="h-full">
               <div 

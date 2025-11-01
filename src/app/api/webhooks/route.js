@@ -58,11 +58,37 @@ export async function POST(request) {
                         select: { name: true, email: true, phone: true }
                     },
                     seller: {
-                        select: { restaurantName: true, username: true }
+                        select: {id: true, restaurantName: true, username: true, role: true }
                     }
                 }
             });
 
+            const admins = await prisma.seller.findMany({
+                where: {
+                    role: "admin"
+                }
+            })
+
+
+            //sending web push notification to admins
+            if (admins.length > 0) {
+                for (const admin of admins) {
+                    await fetch(`${process.env.SELLER_API_URL}/web-push/send`, {
+                        method: "POST",
+                        body: JSON.stringify({ sellerId: updatedOrder.seller.id, message:`Order: \n${updatedOrder.productList.map((item) => `${item.name} x${item.quantity}\n` ).join(" ")}`  })
+                    })
+                }
+            }
+
+            //send web push to seller himself if he is not admin
+            if (updatedOrder.seller.role !== "admin") {
+                await fetch(`${process.env.SELLER_API_URL}/web-push/send`, {
+                    method: "POST",
+                    body: JSON.stringify({ sellerId: updatedOrder.seller.id, message:`Order: \n${updatedOrder.productList.map((item) => `${item.name} x${item.quantity}\n` ).join(" ")}`  })
+                })
+            }
+
+            //sending email to admin
             if (adminEmail) {
                 try {
                     console.log("Sending admin email for captured payment");

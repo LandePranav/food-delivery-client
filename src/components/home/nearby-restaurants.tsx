@@ -53,89 +53,8 @@ interface SellerData {
 }
 
 export default function NearbyRestaurants({ restaurants = [] }: NearbyRestaurantsProps) {
-  const [nearbyRestaurants, setNearbyRestaurants] = useState<Restaurant[]>([])
-  const [loading, setLoading] = useState(true)
-  const [sellers, setSellers] = useState<SellerData[]>([])
-  const { userLocation, getDistanceFromUser } = useContext(context)
-  const fetchedRef = useRef(false)
-  const hasRestaurants = useMemo(() => restaurants.length > 0, [restaurants])
-  const MAX_DISTANCE_KM = 4
 
-  const mapSellersToRestaurants = useMemo(() => (sourceSellers: SellerData[]): Restaurant[] => {
-    const formatted = sourceSellers.map((seller: SellerData) => {
-      let calculatedDistance: number | null = null
-      if (seller.gpsLocation && userLocation) {
-        calculatedDistance = getDistanceFromUser(seller.gpsLocation) as number | null
-      }
-      return {
-        id: seller.id,
-        name: seller.restaurantName || seller.name,
-        cuisine: seller.specialty || "Various cuisines",
-        gpsLocation: seller.gpsLocation,
-        calculatedDistance,
-        distance: calculatedDistance
-          ? `${calculatedDistance.toFixed(1)} km away`
-          : seller.distance || "",
-        rating: seller.rating || 4.5,
-        reviewCount: seller.reviewCount || 100,
-        imageUrl: seller.imageUrl || null,
-        profile: seller.profile || null,
-        tags: seller.tags || [],
-        deliveryTime: seller.deliveryTime || "15-30 min"
-      } as Restaurant
-    })
-
-    const filtered = userLocation
-      ? formatted.filter(r => r.calculatedDistance !== null && (r.calculatedDistance as number) <= MAX_DISTANCE_KM)
-      : formatted
-
-    filtered.sort((a: Restaurant, b: Restaurant) => {
-      const distA = a.calculatedDistance ?? Infinity
-      const distB = b.calculatedDistance ?? Infinity
-      return distA - distB
-    })
-
-    return filtered
-  }, [userLocation, getDistanceFromUser])
-
-  // Fetch sellers once (unless restaurants are provided via props)
-  useEffect(() => {
-    if (hasRestaurants) {
-      setNearbyRestaurants(mapSellersToRestaurants(restaurants))
-      setLoading(false)
-      return
-    }
-
-    let cancelled = false
-    const fetchSellers = async () => {
-      try {
-        setLoading(true)
-        const response = await api.get("/sellers")
-        if (!cancelled && response.status === 200 && Array.isArray(response.data)) {
-          setSellers(response.data)
-        }
-      } catch (error) {
-        if (!cancelled) {
-          console.error("Error fetching nearby restaurants:", error)
-          setSellers([])
-        }
-      } finally {
-        if (!cancelled) setLoading(false)
-      }
-    }
-
-    if (!fetchedRef.current) {
-      fetchedRef.current = true
-      fetchSellers()
-    }
-    return () => { cancelled = true }
-  }, [hasRestaurants, restaurants])
-
-  // Derive nearbyRestaurants whenever sellers or user location changes
-  useEffect(() => {
-    if (hasRestaurants) return
-    setNearbyRestaurants(mapSellersToRestaurants(sellers))
-  }, [sellers, hasRestaurants, mapSellersToRestaurants])
+  const { userLocation} = useContext(context)
 
   // Helper function to get the best available image URL
   const getImageUrl = (restaurant: Restaurant): string => {
@@ -157,11 +76,9 @@ export default function NearbyRestaurants({ restaurants = [] }: NearbyRestaurant
         </Link>
       </div>
       
-      {loading ? (
-        <div className="flex justify-center py-8 bg-white dark:bg-[#1E1E1E] rounded-xl shadow-sm">
-          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-orange-500"></div>
-        </div>
-      ) : nearbyRestaurants.length === 0 ? (
+     
+      {
+        restaurants.length === 0 ? (
         <div className="text-center py-8 bg-white dark:bg-[#1E1E1E] rounded-xl shadow-sm">
           <div className="flex flex-col items-center gap-2">
             <Store className="h-10 w-10 text-gray-400" />
@@ -174,9 +91,9 @@ export default function NearbyRestaurants({ restaurants = [] }: NearbyRestaurant
         </div>
       ) : (
         <div className="space-y-4">
-          {nearbyRestaurants.slice(0, 3).map((restaurant) => (
+          {restaurants.slice(0, 3).map((restaurant) => (
             <Link 
-              href={`/restaurant/${restaurant.id}`}
+              href={`/restaurants/${restaurant.id}`}
               key={restaurant.id}
               className="flex gap-4 items-center p-3 rounded-lg bg-white dark:bg-[#1E1E1E] shadow-sm border border-gray-100 dark:border-[#333333] hover:shadow-md transition-shadow"
             >
@@ -202,8 +119,8 @@ export default function NearbyRestaurants({ restaurants = [] }: NearbyRestaurant
               </div>
               
               <div className="flex-1">
-                <h3 className="font-medium text-base dark:text-white">{restaurant.name}</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">{restaurant.cuisine}</p>
+                <h3 className="font-medium text-base dark:text-white">{restaurant.name || restaurant.restaurantName}</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">{restaurant.specialty}</p>
                 <div className="flex items-center justify-between mt-2">
                   {/* <div className="flex items-center">
                     <Star className="h-4 w-4 fill-yellow-400 text-yellow-400 dark:fill-white dark:text-white mr-1" />
@@ -212,19 +129,19 @@ export default function NearbyRestaurants({ restaurants = [] }: NearbyRestaurant
                   </div> */}
                   
                   <div className="text-sm text-gray-700 dark:text-gray-300 font-medium">
-                    {typeof restaurant.calculatedDistance === 'number' ? `${restaurant.calculatedDistance.toFixed(1)} km` : ''}
+                    {isNaN(parseInt(restaurant?.distance ?? '')) ? "--" : parseInt(restaurant?.distance?? '1')} kms away
                   </div>
                 </div>
               </div>
             </Link>
           ))}
           
-          {nearbyRestaurants.length > 3 && (
+          {restaurants.length > 3 && (
             <Link 
               href="/restaurants"
               className="flex justify-center items-center py-3 bg-white dark:bg-[#1E1E1E] rounded-lg text-orange-500 hover:text-orange-600 hover:bg-gray-50 dark:hover:bg-[#292929] transition-colors border border-gray-100 dark:border-[#333333] shadow-sm"
             >
-              View {nearbyRestaurants.length - 3} more restaurants
+              View all restaurants
             </Link>
           )}
         </div>

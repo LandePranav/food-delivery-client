@@ -1,11 +1,25 @@
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
 import {withAccelerate} from "@prisma/extension-accelerate";
+import { calculateDistance } from "@/lib/utils";
+import { MAX_DISTANCE_KM } from "@/config/config";
+
 const prisma = new PrismaClient().$extends(withAccelerate());
 
 export async function GET(request, { params }) {
 
-    const id = await params?.id;
+    const {id} = await params;
+    const {searchParams} = new URL(request.url);
+    const lat = parseFloat(searchParams.get("lat"));
+    const lng = parseFloat(searchParams.get("lng"));
+
+    if (Number.isNaN(lat) || Number.isNaN(lng)) {
+        return NextResponse.json(
+            { error: "Location is required" },
+            { status: 400 }
+        );
+    }
+    
 
     try {
         const product = await prisma.product.findUnique({
@@ -15,10 +29,12 @@ export async function GET(request, { params }) {
                     select: {
                         restaurantName: true,
                         username: true,
+                        gpsLocation: true
                     },
                 },
             },
         });
+
         
         if (!product) {
             return NextResponse.json(
@@ -26,6 +42,14 @@ export async function GET(request, { params }) {
                 { status: 404 }
             );
         }
+
+    const userDistance = calculateDistance(lat, lng, product.seller.gpsLocation.latitude, product.seller.gpsLocation.longitude);
+    if (userDistance > MAX_DISTANCE_KM) {
+        return NextResponse.json(
+            { error: "Product is out of delivery range" },
+            { status: 400 }
+        );
+    }
         
         // Format the response
         const formattedProduct = {
