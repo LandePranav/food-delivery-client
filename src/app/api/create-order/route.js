@@ -19,9 +19,9 @@ export async function POST(request) {
     const currentHour = currentISTTime.getUTCHours();
 
     // Check if current time is between 12 AM and 6 AM IST
-    if (currentHour >= 0 && currentHour < 6) {
-        return NextResponse.json({success: false, message: "Orders cannot be placed between 12 AM and 6 AM IST.", status: 403 });
-    }
+    // if (currentHour >= 0 && currentHour < 6) {
+    //     return NextResponse.json({success: false, message: "Orders cannot be placed between 12 AM and 6 AM IST.", status: 403 });
+    // }
 
     const data = await request.json();
     console.log(data);

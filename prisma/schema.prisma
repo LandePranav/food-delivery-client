@@ -8,30 +8,38 @@ datasource db {
 }
 
 model Seller {
-  id                String    @id @unique @default(uuid())
-  username          String    @unique
-  email             String    @unique
-  phone             String    @unique
-  address           String?
-  password          String
-  profile           String?
-  createdAt         DateTime  @default(now())
-  updatedAt         DateTime  @updatedAt
-  isVerified        Boolean   @default(false)
-  verificationToken String?
-  otp               String?
-  otpExpiry         DateTime?
-  active            Boolean   @default(false)
-  gpsLocation       Json?
-  restaurantName    String?   @unique
-  speciality        String?
-  role              String    @default("seller")
-  deliveryCharge    Int       @default(0)
-  bankDetails       Json?
-  orders            Order[]
-  products          Product[]
+  id                            String                         @id @unique @default(uuid())
+  username                      String                         @unique
+  email                         String                         @unique
+  phone                         String                         @unique
+  address                       String?
+  password                      String
+  profile                       String?
+  createdAt                     DateTime                       @default(now())
+  updatedAt                     DateTime                       @updatedAt
+  isVerified                    Boolean                        @default(false)
+  verificationToken             String?
+  active                        Boolean                        @default(false)
+  gpsLocation                   Json?
+  restaurantName                String?                        @unique
+  speciality                    String?
+  role                          String                         @default("seller")
+  deliveryCharge                Int                            @default(0)
+  bankDetails                   Json?
+  otp                           String?
+  otpExpiry                     DateTime?
+  PushNotificationSubscriptions PushNotificationSubscription[]
+  orders                        Order[]
+  products                      Product[]
 
   @@map("sellers")
+}
+
+model PushNotificationSubscription {
+  id       String  @id @unique @default(uuid())
+  endpoint String  @unique
+  sellerId String?
+  seller   Seller? @relation(fields: [sellerId], references: [id])
 }
 
 model User {
@@ -83,22 +91,22 @@ model Session {
 }
 
 model Product {
-  id          String   @id @unique @default(uuid())
+  id          String    @id @unique @default(uuid())
   sellerId    String
   name        String
   price       Int
   description String
-  visible     Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  visible     Boolean   @default(true)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   imageUrls   String[]
   categories  String[]
-  isFeatured  Boolean  @default(false)
-  addedCost   Int      @default(0)
-  priority    Int      @default(0)
-  startTime   DateTime? // UTC time for start of time slot
-  endTime     DateTime? // UTC time for end of time slot
-  seller      Seller   @relation(fields: [sellerId], references: [id])
+  isFeatured  Boolean   @default(false)
+  addedCost   Int       @default(0)
+  priority    Int       @default(0)
+  endTime     DateTime?
+  startTime   DateTime?
+  seller      Seller    @relation(fields: [sellerId], references: [id])
 
   @@map("products")
 }

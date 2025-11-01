@@ -5,17 +5,16 @@ import SpecialDishesCarousel from "@/components/home/special-dishes-carousel"
 import { Categories } from "@/components/home/categories"
 import PopularFoods from "@/components/home/popular-foods"
 import NearbyRestaurants from "@/components/home/nearby-restaurants"
-import { useEffect, useState, useContext } from "react"
-import api from "@/lib/axios"
-import { context } from "@/context/contextProvider"
+import { useState, } from "react"
+import { useFetchInfiniteProducts } from "@/queries/useProducts"
+import { useFetchInfiniteRestaurants } from "@/queries/useRestaurants"
+import CustomLoader from "@/components/common/CustomLoader"
+import { useGeolocation } from "@/hooks/useGeoLocation"
 
 export default function Home() {
-  const [products, setProducts] = useState([])
-  const [isLoading, setIsLoading] = useState(true)
-  const { userLocation } = useContext(context)
-  const [sellers, setSellers] = useState([])
-  const [sellersLoading, setSellersLoading] = useState(true)
-  const [categories, setCategories] = useState([
+  // const { userLocation } = useContext(context)
+  const {location} = useGeolocation()
+  const categories =[
     { name: "All", emoji: "🍽️" },
     { name: "Pure-Veg", emoji: "🥬" },
     { name: "Non-Veg", emoji: "🍗" },
@@ -29,68 +28,17 @@ export default function Home() {
     { name: "North", emoji: "🍲" },
     { name: "South", emoji: "🥘" },
     { name: "Other", emoji: "🍴" },
-  ])
+  ]
 
-  useEffect(() => {
-    const fetchProducts = async () => {
-      if (!userLocation) return
-      try {
-        console.log("Fetching products for home page") // Debug
-        setIsLoading(true)
-        
-        // Build query parameters
-        const params = new URLSearchParams()
-        params.append('lat', userLocation.latitude.toString())
-        params.append('lng', userLocation.longitude.toString())
-        
-        const response = await api.get(`/products?${params.toString()}`)
-        if (response.status === 200) {
-          console.log("Products fetched successfully:", response.data.length) // Debug
-          setProducts(response.data)
-        } else {
-          console.log("Error fetching products")
-        }
-      } catch (error) {
-        console.error("Error fetching products:", error)
-      } finally {
-        setIsLoading(false)
-      }
-    }
-    fetchProducts()
-  }, [userLocation]) // Re-fetch when user location changes
+  const {data: restaurantsData, isLoading:isLoadingRestaurants, isError: isErrorRestaurants} = useFetchInfiniteRestaurants(location?.lat, location?.lng, "", 10);
+  const {data: productsData, isLoading:isLoadingProducts, isError:isErrorProducts} = useFetchInfiniteProducts(location?.lat, location?.lng, "", "all", 8,'', {sort: "popularity"});
 
-  // Fetch sellers once for NearbyRestaurants to avoid internal refetch loops
-  useEffect(() => {
-    let cancelled = false
-    const fetchSellers = async () => {
-      try {
-        setSellersLoading(true)
-        const response = await api.get("/sellers")
-        if (!cancelled && response.status === 200) {
-          setSellers(Array.isArray(response.data) ? response.data : [])
-        }
-      } catch (error) {
-        if (!cancelled) {
-          console.error("Error fetching sellers:", error)
-          setSellers([])
-        }
-      } finally {
-        if (!cancelled) setSellersLoading(false)
-      }
-    }
-
-    fetchSellers()
-    return () => { cancelled = true }
-  }, [])
-
-  // Debug render counts
-  useEffect(() => {
-    console.log("Products length:", products.length)
-  }, [products])
+  const restaurants = restaurantsData ? restaurantsData.pages.flatMap(page => page.formattedSellers) : [];
+  const products = productsData ? productsData.pages.flatMap(page => page.formattedProducts) : [];
 
   return (
     <PageLayout>
-      <div className="px-2 pb-12">
+      <div className="px-2 pb-12 space-y-4">
         {/* Categories */}
         <Categories categories={categories} />
 
@@ -98,10 +46,58 @@ export default function Home() {
         <SpecialDishesCarousel />
 
         {/* Popular Foods */}
-        <PopularFoods items={products} limit={6} />
+        {
+          isLoadingProducts ? (
+            <div className="space-y-4">
+              <h2 className="text-lg font-bold text-gray-800 dark:text-white">
+                Popular Foods
+              </h2>
+              <div className="flex justify-center py-8 bg-white dark:bg-[#1E1E1E] rounded-xl shadow-sm">
+                <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-orange-500"></div>
+              </div>
+            </div>
+          ) : (
+            isErrorProducts ? (
+              <div className="space-y-4">
+                <h2 className="text-lg font-bold text-gray-800 dark:text-white">
+                  Nearby Restaurants
+                </h2>
+                <div className="flex justify-center py-8 bg-white dark:bg-[#1E1E1E] rounded-xl shadow-sm">
+                  <p className="text-red-500 text-center">
+                    Failed to load popular foods.
+                  </p>
+                </div>
+              </div>
+            ) :
+            <PopularFoods items={products} limit={10} />
+          )
+        }
 
         {/* Nearby Restaurants */}
-        <NearbyRestaurants restaurants={sellers} />
+        { isLoadingRestaurants ? (
+          <div className="space-y-4">
+            <h2 className="text-lg font-bold text-gray-800 dark:text-white">
+              Nearby Restaurants
+            </h2>
+            <div className="flex justify-center py-8 bg-white dark:bg-[#1E1E1E] rounded-xl shadow-sm">
+              <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-orange-500"></div>
+            </div>
+          </div>
+        ) : (
+          isErrorRestaurants ? (
+            <div className="space-y-4">
+              <h2 className="text-lg font-bold text-gray-800 dark:text-white">
+                Nearby Restaurants
+              </h2>
+              <div className="flex justify-center py-8 bg-white dark:bg-[#1E1E1E] rounded-xl shadow-sm">
+                <p className="text-red-500 text-center">
+                  Failed to load nearby restaurants.
+                </p>
+              </div>
+            </div>
+          )
+          :
+        <NearbyRestaurants restaurants={restaurants} />)}
       </div>
     </PageLayout>
   )

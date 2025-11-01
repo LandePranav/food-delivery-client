@@ -1,29 +1,30 @@
 "use client"
-import { useContext, useEffect, useState, Suspense } from "react"
-import { useSearchParams } from "next/navigation"
+import { useContext, useEffect, useState, Suspense, useRef } from "react"
 import { IoSearch, IoFilter } from "react-icons/io5"
 import { PageLayout } from "@/components/layout/page-layout"
 import Card from "@/components/home/card"
-import api from "@/lib/axios"
 import { Loader2 } from "lucide-react"
-import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuItem } from "@/components/ui/dropdown-menu"
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { context } from "@/context/contextProvider"
+import  { useFetchInfiniteProducts} from "@/queries/useProducts"
+import { useGeolocation } from "@/hooks/useGeoLocation"
+import CustomLoader from "@/components/common/CustomLoader"
+import { useSearchParams } from "next/navigation"
 
 // Create a separate component for the menu content
 function MenuContent() {
-  const searchParams = useSearchParams()
-  const searchQuery = searchParams.get("search")
-  const categoryFilter = searchParams.get("category")
-  const { userLocation } = useContext(context)
-  
-  const [searchText, setSearchText] = useState(searchQuery || "")
-  const [allProducts, setAllProducts] = useState([])
-  const [filtered, setFiltered] = useState([])
-  const [isLoading, setIsLoading] = useState(true)
-  const [activeCategory, setActiveCategory] = useState(categoryFilter || "")
-  const [priceFilter, setPriceFilter] = useState(0)
-  
+  const {location} = useGeolocation();
+  const [searchText, setSearchText] = useState("")
+  const [searchQuery, setSearchQuery] = useState("")
+  const [activeCategory, setActiveCategory] = useState("all")
+  const searchParams = useSearchParams();
+
+  //Update searchtext and category from URL params
+  useEffect(() => {
+    const searchParam = searchParams.get("search") || ""
+    const categoryParam = searchParams.get("category") || "all"
+    setSearchText(searchParam)
+    setActiveCategory(categoryParam.toLowerCase() === "all" ? "" : categoryParam)
+  }, [searchParams])
+ 
   // Categories list
   const categories = [
     { name: "All", emoji: "🍽️" },
@@ -40,88 +41,31 @@ function MenuContent() {
     { name: "South", emoji: "🥘" },
     { name: "Other", emoji: "🍴" },
   ]
+  const loadMoreRef = useRef(null);
 
-  // Price filter options
-  const priceRanges = [
-    { value: 0, label: "💰 Price - any" },
-    { value: 50, label: "💰 < ₹50 Price" },
-    { value: 100, label: "💰 < ₹100 Price" },
-    { value: 150, label: "💰 < ₹150 Price" },
-    { value: 200, label: "💰 < ₹200 Price" }
-  ]
+  const {data, hasNextPage, fetchNextPage, isFetchingNextPage, isLoading} = useFetchInfiniteProducts(location?.lat, location?.lng, searchQuery, activeCategory )
 
-  // Load initial products
+  useEffect(()=> {
+    const searchTimeout = setTimeout(()=>{
+      setSearchQuery(searchText)
+    },500)
+    return () => clearTimeout(searchTimeout);
+  },[searchText])
+
+    // Intersection Observer for infinite scroll
   useEffect(() => {
-    const fetchProducts = async () => {
-      if (!userLocation) return
-      setIsLoading(true)
-      try {
-        // Build query parameters
-        const params = new URLSearchParams()
-        params.append('lat', userLocation.latitude.toString())
-        params.append('lng', userLocation.longitude.toString())
-        
-        const response = await api.get(`/products?${params.toString()}`)
-        if (response.status === 200) {
-          setAllProducts(response.data)
-          setIsLoading(false)
-        }
-      } catch (error) {
-        console.error("Error fetching products:", error)
-        setIsLoading(false)
-      }
-    }
-    fetchProducts()
-  }, [userLocation]) // Re-fetch when user location changes
+    if (!hasNextPage || isFetchingNextPage || !loadMoreRef.current) return;
 
-  // Filter products based on search query, category, and price
-  useEffect(() => {
-    if (allProducts.length > 0) {
-      let result = [...allProducts]
-      
-      // Apply search filter
-      if (searchText) {
-        result = result.filter(item => 
-          item.name.toLowerCase().includes(searchText.toLowerCase()) ||
-          (item.description && item.description.toLowerCase().includes(searchText.toLowerCase()))
-        )
-      }
-      
-      // Apply category filter
-      if (activeCategory && activeCategory.toLowerCase() !== "all") {
-        result = result.filter(item => {
-          // Check if categories is an array and contains the active category
-          if (Array.isArray(item.categories)) {
-            return item.categories.some(cat => 
-              cat.toLowerCase() === activeCategory.toLowerCase()
-            )
-          }
-          // For backward compatibility with category as string
-          return item.category && item.category.toLowerCase() === activeCategory.toLowerCase()
-        })
-      }
-      
-      // Apply price filter
-      if (priceFilter > 0) {
-        result = result.filter(item => 
-          item.price && parseFloat(item.price) <= priceFilter
-        )
-      }
-      
-      setFiltered(result)
-    }
-  }, [searchText, activeCategory, priceFilter, allProducts])
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) fetchNextPage();
+    });
 
-  // Apply URL params when component mounts
-  useEffect(() => {
-    if (searchQuery) setSearchText(searchQuery)
-    if (categoryFilter) setActiveCategory(categoryFilter)
-  }, [searchQuery, categoryFilter])
+    observer.observe(loadMoreRef.current);
+    return () => observer.disconnect();
+  },[hasNextPage, fetchNextPage])
 
-  // Handle price filter change
-  const handlePriceFilterChange = (value) => {
-    setPriceFilter(Number(value))
-  }
+  const products = data ? data.pages.flatMap(page => page.formattedProducts) : [];
+
 
   return (
     <div className="w-full pb-4">
@@ -137,7 +81,7 @@ function MenuContent() {
       </div>
 
       {/* Categories */}
-      <div className="w-full overflow-x-auto py-2 flex gap-2 scrollbar-hide mb-4">
+      <div className="w-full flex sm:flex-wrap scrollbar-hide py-2 gap-2 mb-4">
         {categories.map((category, index) => (
           <button
             key={index}
@@ -155,51 +99,51 @@ function MenuContent() {
         ))}
       </div>
 
-      {/* Price Filter Select using shadcn Select component */}
-      {/* <div className="mb-4 w-fit">
-        <Select 
-          value={priceFilter.toString()} 
-          onValueChange={handlePriceFilterChange}
-        >
-          <SelectTrigger className="w-[180px] bg-gray-700 bg-opacity-50 font-semibold text-white border-none focus:ring-0 focus:ring-offset-0">
-            <SelectValue placeholder="Select price range" />
-          </SelectTrigger>
-          <SelectContent>
-            {priceRanges.map((range) => (
-              <SelectItem key={range.value} value={range.value.toString()}>
-                {range.label}
-              </SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
-      </div> */}
-
       {/* Loading State */}
       {isLoading ? (
         <div className="flex items-center justify-center py-12">
           <Loader2 className="h-8 w-8 animate-spin text-gray-500 dark:text-gray-400" />
         </div>
-      ) : filtered.length === 0 ? (
+      ) : products.length === 0 ? (
         <div className="text-center py-12">
           <p className="text-gray-500 dark:text-gray-400">No products found</p>
         </div>
       ) : (
-        <div className="w-full grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 py-3">
-          {filtered.map((item) => (
-            <div key={item.id} className="h-full cursor-pointer">
-              <Card 
-                sellerId={item.sellerId} 
-                id={item.id} 
-                category={item.category} 
-                imageUrls={item.imageUrls} 
-                imageUrl={item.imageUrl}
-                name={item.name} 
-                description={item.description} 
-                price={item.price} 
-                restaurantName={item.restaurantName}
-              />
-            </div>
-          ))}
+        <div className="space-y-6">
+          <div className="w-full grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 py-3">
+            {products.map((item) => (
+              <div key={item.id} className="h-full cursor-pointer">
+                <Card 
+                  sellerId={item.sellerId} 
+                  id={item.id} 
+                  category={item.category} 
+                  imageUrls={item.imageUrls} 
+                  imageUrl={item.imageUrl}
+                  name={item.name} 
+                  description={item.description} 
+                  price={item.price} 
+                  restaurantName={item.restaurantName}
+                />
+              </div>
+            ))}
+          </div>
+
+          {/* Infinite Scroll Trigger */}
+          <div 
+            ref={loadMoreRef} 
+            className="text-muted-foreground flex h-10 justify-center items-center"
+          >
+            {isFetchingNextPage && (
+              <div className="flex justify-center">
+                <CustomLoader title="items" />
+              </div>
+            )}
+            {!hasNextPage && products.length > 0 && (
+              <div className="text-center py-4">
+                <p className="text-gray-500">No more items to load</p>
+              </div>
+            )}
+          </div>
         </div>
       )}
     </div>

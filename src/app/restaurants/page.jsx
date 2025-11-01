@@ -1,74 +1,46 @@
 "use client"
 
-import { useState, useEffect, useContext } from "react"
+import { useState, useEffect, useContext, useRef } from "react"
 import Image from "next/image"
 import Link from "next/link"
-import { Star, MapPin, Search, Filter, Store } from "lucide-react"
+import { MapPin, Search, Store } from "lucide-react"
 import { PageLayout } from "@/components/layout/page-layout"
-import api from "@/lib/axios"
 import { context } from "@/context/contextProvider"
+import { useFetchInfiniteRestaurants } from "@/queries/useRestaurants"
+import { useGeolocation } from "@/hooks/useGeoLocation"
+import CustomLoader from "@/components/common/CustomLoader"
+
 
 export default function RestaurantsPage() {
-  const [restaurants, setRestaurants] = useState([])
-  const [loading, setLoading] = useState(true)
+
   const [searchTerm, setSearchTerm] = useState("")
-  const { userLocation, getDistanceFromUser } = useContext(context)
+  const [searchQuery, setSearchQuery] = useState("")
+  const { userLocation} = useContext(context)
+  const {location, err} = useGeolocation();
 
+  const loadMoreRef = useRef(null);
+
+  const {data, hasNextPage, fetchNextPage, isLoading, isFetchingNextPage} = useFetchInfiniteRestaurants(location?.lat, location?.lng,searchQuery);
+  const restaurants = data ? data.pages.flatMap(page => page.formattedSellers) : [];
+
+  useEffect(()=>{
+    const searchTimeout = setTimeout(()=>{
+      setSearchQuery(searchTerm)
+    }, 500)
+    return () => clearTimeout(searchTimeout);
+  }, [searchTerm])
+
+  // Intersection Observer for infinite scroll
   useEffect(() => {
-    const fetchRestaurants = async () => {
-      try {
-        setLoading(true)
-        const response = await api.get("/sellers")
-        if (response.status === 200) {
-          let formattedRestaurants = response.data.map(seller => {
-            // Calculate distance if user location and seller GPS location are available
-            let calculatedDistance = null
-            if (seller.gpsLocation && userLocation) {
-              calculatedDistance = getDistanceFromUser(seller.gpsLocation)
-            }
-            
-            return {
-              ...seller,
-              calculatedDistance,
-              // Format distance for display: either calculated or default
-              distance: calculatedDistance 
-                ? `${calculatedDistance.toFixed(1)} km away` 
-                : "Distance unavailable"
-            }
-          })
-          
-          // Apply distance filter only when user location is available
-          if (userLocation) {
-            formattedRestaurants = formattedRestaurants.filter(restaurant => 
-              restaurant.calculatedDistance !== null && restaurant.calculatedDistance <= 4
-            )
-          }
-          
-          // Sort by distance if available
-          formattedRestaurants.sort((a, b) => {
-            if (a.calculatedDistance !== null && b.calculatedDistance !== null) {
-              return a.calculatedDistance - b.calculatedDistance
-            }
-            return 0
-          })
-          
-          setRestaurants(formattedRestaurants)
-        }
-      } catch (error) {
-        console.error("Error fetching restaurants:", error)
-      } finally {
-        setLoading(false)
-      }
-    }
+    if (!hasNextPage || isFetchingNextPage || !loadMoreRef.current) return;
 
-    fetchRestaurants()
-  }, [userLocation, getDistanceFromUser])
+    const observer = new IntersectionObserver((entries) => {
+      if (entries[0].isIntersecting) fetchNextPage();
+    });
 
-  // Filter restaurants based on search term
-  const filteredRestaurants = restaurants.filter(restaurant =>
-    restaurant.restaurantName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    (restaurant.specialty && restaurant.specialty.toLowerCase().includes(searchTerm.toLowerCase()))
-  )
+    observer.observe(loadMoreRef.current);
+    return () => observer.disconnect();
+  },[hasNextPage, fetchNextPage])
 
   // Helper function to get the best available image URL
   const getImageUrl = (restaurant) => {
@@ -103,11 +75,11 @@ export default function RestaurantsPage() {
         </div>
         
         {/* Restaurants Grid */}
-        {loading ? (
+        {isLoading ? (
           <div className="flex justify-center items-center h-64">
             <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-900 dark:border-white"></div>
           </div>
-        ) : filteredRestaurants.length === 0 ? (
+        ) : restaurants.length === 0 ? (
           <div className="text-center py-16 bg-white dark:bg-[#1E1E1E] rounded-lg">
             <p className="text-gray-500 dark:text-gray-400">
               {searchTerm 
@@ -118,10 +90,11 @@ export default function RestaurantsPage() {
             </p>
           </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {filteredRestaurants.map((restaurant) => (
-              <Link
-                href={`/restaurant/${restaurant.id}`}
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {restaurants.map((restaurant) => (
+                <Link
+                href={`/restaurants/${restaurant.id}`}
                 key={restaurant.id}
                 className="bg-white dark:bg-[#1E1E1E] rounded-lg overflow-hidden shadow-sm hover:shadow-md transition-shadow border border-gray-100 dark:border-[#333333]"
               >
@@ -159,7 +132,7 @@ export default function RestaurantsPage() {
                   <div className="flex flex-wrap gap-y-2 gap-x-4 text-sm text-gray-500 dark:text-gray-400">
                     <div className="flex items-center">
                       <MapPin className="h-4 w-4 mr-1 text-red-500" />
-                      <span>{restaurant.distance}</span>
+                      <span>{!isNaN(parseInt(restaurant.distance)) ? parseInt(restaurant.distance) : '--'} kms away...</span>
                     </div>
                     
                     {/* Rating display (commented out as requested) */}
@@ -174,8 +147,25 @@ export default function RestaurantsPage() {
               </Link>
             ))}
           </div>
+          {/* Infinite Scroll Trigger */}
+          <div 
+            ref={loadMoreRef} 
+            className="text-muted-foreground flex h-10 justify-center items-center"
+          >
+            {isFetchingNextPage && (
+              <div className="flex justify-center">
+                <CustomLoader title="restaurants" />
+              </div>
+            )}
+            {!hasNextPage && restaurants.length > 0 && (
+              <div className="text-center py-4">
+                <p className="text-gray-500">No more restaurants to load</p>
+              </div>
+            )}
+          </div>
+          </div>
         )}
       </div>
     </PageLayout>
   )
-} 
+}

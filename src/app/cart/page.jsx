@@ -17,6 +17,7 @@ import { ShoppingCart, Trash, Lock, Plus, Minus, AlertTriangle, UtensilsCrossed 
 import Image from "next/image";
 import api from "@/lib/axios";
 import { CldImage } from "next-cloudinary";
+import { toast } from "sonner";
 
 export default function Cart() {
     const {cartItems, setCartItems, addToCart, removeFromCart, removeItemCompletely, calculateCartTotal} = useContext(context);
@@ -191,9 +192,7 @@ export default function Cart() {
 
         // Check if we have valid GPS location
         if (userLocation.latitude === 0 && userLocation.longitude === 0) {
-            setAlertType("warning");
-            setAlertMessage("We need your location for delivery. Please allow location access.");
-            setShowAlert(true);
+            toast.error("We need your location for delivery. Please allow location access.");
             
             try {
                 const location = await requestLocationPermission();
@@ -201,40 +200,24 @@ export default function Cart() {
                 // Double-check if we got valid coordinates
                 if (location.latitude === 0 && location.longitude === 0) {
                     setAlertType("error");
-                    setAlertMessage("Could not get valid location coordinates. Please try again.");
-                    setShowAlert(true);
-                    setTimeout(() => setShowAlert(false), 5000);
+                    toast.error("Could not get valid location coordinates. Please try again.");
                     return;
                 }
             } catch (error) {
-                setAlertType("error");
-                setAlertMessage("Location permission is required for delivery. Please enable location access and try again.");
-                setShowAlert(true);
-                setTimeout(() => setShowAlert(false), 5000);
+                toast.error("Location permission is required for delivery. Please enable location access and try again.");
                 return;
             }
         }
         
         // Validate GPS coordinates are not at null island (0,0)
         if (userLocation.latitude === 0 && userLocation.longitude === 0) {
-            setAlertType("error");
-            setAlertMessage("Invalid location detected. Please refresh and allow location access.");
-            setShowAlert(true);
-            setTimeout(() => setShowAlert(false), 5000);
+            toast.error("Invalid location detected. Please refresh and allow location access.");
             return;
         }
         
         // Check if all products belong to the same restaurant
         if (!checkSameRestaurant()) {
-            setAlertType("error");
-            setAlertMessage("You can only order items from the same restaurant in a single order. Please remove items from different restaurants.");
-            setShowAlert(true);
-            
-            // Hide alert after 5 seconds
-            setTimeout(() => {
-                setShowAlert(false);
-            }, 3000);
-            
+            toast.error("You can only order items from the same restaurant in a single order. Please remove items from different restaurants.");
             return;
         }
         
@@ -257,14 +240,7 @@ export default function Cart() {
         
         // Validate that address is not empty
         if (!formData.address && !newAddress) {
-            setAlertType("error");
-            setAlertMessage("Please provide a delivery address");
-            setShowAlert(true);
-            
-            setTimeout(() => {
-                setShowAlert(false);
-            }, 3000);
-            
+            toast.error("Please provide a delivery address");
             return;
         }
         
@@ -295,7 +271,6 @@ export default function Cart() {
                 return;
             }
 
-            console.log("Order Response : ", response);
             const data = response.data;
 
             // Initialize Razorpay
@@ -359,10 +334,7 @@ export default function Cart() {
             
             if (data.success) {
                 // Clear cart after successful order
-                setCartItems([]);
-                setAlertType("success");
-                setAlertMessage("Order placed successfully!");
-                setShowAlert(true);
+                toast.success("Order placed successfully!");
                 setTimeout(() => {
                     router.push("/profile");
                 }, 2000);

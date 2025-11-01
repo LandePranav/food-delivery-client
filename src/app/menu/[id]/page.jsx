@@ -9,42 +9,21 @@ import { LuShoppingCart } from "react-icons/lu"
 import { Button } from "@/components/ui/button"
 import { motion } from "motion/react"
 import { context } from "@/context/contextProvider"
-import api from "@/lib/axios"
+import { useFetchProductByID } from "@/queries/useProducts"
+import { useGeolocation } from "@/hooks/useGeoLocation"
 
 export default function ProductDetail({ params }) {
   const router = useRouter()
   const { addToCart } = useContext(context)
   const id = use(params).id
   
-  const [product, setProduct] = useState(null)
   const [sellerName, setSellerName] = useState("")
-  const [loading, setLoading] = useState(true)
   const [currentImageIndex, setCurrentImageIndex] = useState(0)
   const [isVibrating, setIsVibrating] = useState(false)
+  const {location} = useGeolocation();
   
   // Fetch product details
-  useEffect(() => {
-    const fetchProductDetails = async () => {
-      try {
-        setLoading(true)
-        const response = await api.get(`/products/${id}`)
-        if (response.status === 200) {
-          setProduct(response.data)
-        } else {
-          // Handle product not found
-          console.error("Product not found")
-          setTimeout(() => router.push("/menu"), 2000)
-        }
-      } catch (error) {
-        console.error("Error fetching product details:", error)
-        setTimeout(() => router.push("/menu"), 2000)
-      } finally {
-        setLoading(false)
-      }
-    }
-    
-    fetchProductDetails()
-  }, [id, router])
+  const {data: product, isLoading, isError} = useFetchProductByID(location?.lat, location?.lng, id);
   
   // Image slideshow functionality
   useEffect(() => {
@@ -106,10 +85,10 @@ export default function ProductDetail({ params }) {
   
   // Handle back navigation
   const handleGoBack = () => {
-    router.back()
+    router.push('/menu')
   }
 
-  if (loading) {
+  if (isLoading) {
     return (
       <PageLayout>
         <div className="flex items-center justify-center min-h-[60vh]">
@@ -121,13 +100,36 @@ export default function ProductDetail({ params }) {
       </PageLayout>
     )
   }
-  
-  if (!product) {
+
+  if (isError) {
+    setTimeout(()=>{
+      router.push('/menu'); // Redirect to menu if product not found
+    },1000);
+
     return (
       <PageLayout>
         <div className="flex items-center justify-center min-h-[60vh]">
           <div className="text-center">
-            <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Product not found</h2>
+            <div className="w-fit border rounded-md text-sm border-red-500 bg-red-200 text-red-500 p-2">
+              Error Loading Product
+            </div>
+            <p className="text-gray-600 dark:text-gray-400 mb-4">Redirecting to menu...</p>
+            <Loader2 className="h-10 w-10 animate-spin text-gray-900 dark:text-white mx-auto" />
+          </div>
+        </div>
+      </PageLayout>
+    )
+  }
+  
+  if (!product) {
+    setTimeout(()=>{
+      router.back(); // Redirect to menu if product not found
+    },1000)
+    return (
+      <PageLayout>
+        <div className="flex items-center justify-center min-h-[60vh]">
+          <div className="text-center">
+            <h2 className="text-xl font-semibold mb-4 text-gray-900 dark:text-white">Product not found OR out of delivery range!</h2>
             <p className="text-gray-600 dark:text-gray-400 mb-4">Redirecting to menu...</p>
             <Loader2 className="h-10 w-10 animate-spin text-gray-900 dark:text-white mx-auto" />
           </div>

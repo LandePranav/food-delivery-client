@@ -1,23 +1,35 @@
 "use client"
 
-import { useState, useEffect, useContext, use, useCallback, useMemo } from "react"
+import { useState, useEffect, useContext, use, useCallback, useMemo, useRef } from "react"
 import { CldImage } from "next-cloudinary"
-import { Star, Clock, MapPin, Phone, ShoppingCart, UtensilsCrossed, Store } from "lucide-react"
+import { Star, Clock, MapPin, Phone, ShoppingCart, UtensilsCrossed, Store, Search } from "lucide-react"
 import { PageLayout } from "@/components/layout/page-layout"
 import api from "@/lib/axios"
 import { context } from "@/context/contextProvider"
 import { motion } from "framer-motion"
 import { useRouter } from "next/navigation"
+import CustomLoader from "@/components/common/CustomLoader"
+import { useFetchRestaurantByID } from "@/queries/useRestaurants"
+import { useGeolocation } from "@/hooks/useGeoLocation"
+import { useFetchInfiniteProducts } from "@/queries/useProducts"
+import { InputGroup, InputGroupAddon, InputGroupInput } from "@/components/ui/input-group"
 
 export default function RestaurantDetail({ params }) {
   const { id } = use(params)
-  const [restaurant, setRestaurant] = useState(null)
-  const [products, setProducts] = useState([])
-  const [loading, setLoading] = useState(true)
-  const { addToCart, userLocation, getDistanceFromUser } = useContext(context)
-  const [distance, setDistance] = useState(null)
+  const { addToCart } = useContext(context)
   const [vibratingItemId, setVibratingItemId] = useState(null)
+  const {location} = useGeolocation();
   const router = useRouter()
+  const loadMoreRef = useRef(null);
+  const [searchText, setSearchText] = useState("")
+  const [searchQuery, setSearchQuery] = useState("")
+
+  useEffect(()=> {
+    const searchTimeout = setTimeout(()=>{
+      setSearchQuery(searchText)
+    },500)
+    return () => clearTimeout(searchTimeout);
+  }, [searchText])
   // Helper function to get the best available image URL - memoized to prevent recalculations
   const getImageUrl = useCallback((item) => {
     if (!item) return ""
@@ -31,58 +43,6 @@ export default function RestaurantDetail({ params }) {
   const formatPrice = useCallback((price) => {
     return `₹${parseFloat(price).toFixed(2)}`;
   }, []);
-
-  // Memoized function to calculate distance - won't change between renders
-  const calculateDistanceFromRestaurant = useCallback(() => {
-    if (!restaurant?.gpsLocation || !userLocation || !getDistanceFromUser) return null;
-    
-    const calculatedDistance = getDistanceFromUser(restaurant.gpsLocation);
-    return calculatedDistance;
-  }, [restaurant?.gpsLocation, userLocation, getDistanceFromUser]);
-
-  // Combined single useEffect for fetching restaurant data
-  useEffect(() => {
-    if (!id) return;
-    
-    const fetchRestaurantData = async () => {
-      try {
-        setLoading(true)
-        
-        // Fetch restaurant details
-        const restaurantResponse = await api.get(`/sellers/${id}`)
-        if (restaurantResponse.status === 200) {
-          setRestaurant(restaurantResponse.data)
-        }
-        
-        // Fetch products from this restaurant with user location
-        // Require user location before fetching products
-        if (!userLocation) return
-        const params = new URLSearchParams()
-        params.append('sellerId', id)
-        params.append('lat', userLocation.latitude.toString())
-        params.append('lng', userLocation.longitude.toString())
-        
-        const productsResponse = await api.get(`/products?${params.toString()}`)
-        if (productsResponse.status === 200) {
-          setProducts(productsResponse.data)
-        }
-      } catch (error) {
-        console.error("Error fetching restaurant data:", error)
-      } finally {
-        setLoading(false)
-      }
-    }
-
-    fetchRestaurantData()
-  }, [id, userLocation]); // Re-fetch when ID or user location changes
-
-  // Separate useEffect for distance calculations
-  useEffect(() => {
-    const newDistance = calculateDistanceFromRestaurant();
-    if (newDistance !== null) {
-      setDistance(newDistance);
-    }
-  }, [calculateDistanceFromRestaurant]);
 
   // Optimized add to cart handler with useCallback to prevent recreation on render
   const handleAddToCart = useCallback((product) => {    
@@ -108,11 +68,13 @@ export default function RestaurantDetail({ params }) {
     // No return here since this isn't a cleanup function, it's an event handler
   }, [addToCart, getImageUrl]);
 
-  // Memoized product cards to prevent re-renders
-  const productCards = useMemo(() => {
-    return products.map((product) => (
+  const {data: restaurant, isLoading: isLoadingRestaurant, isError: isErrorRestaurant} = useFetchRestaurantByID(location?.lat, location?.lng, id);
+  const {data: productsData, isLoading: isLoadingProducts, isError: isErrorProducts, hasNextPage, fetchNextPage, isFetchingNextPage} = useFetchInfiniteProducts(location?.lat, location?.lng, searchQuery, 'all', 6, id);
+  const products = productsData?.pages.flatMap(page => page.formattedProducts) ?? [];
+  
+  const ProductCard = ({product}) => {
+    return (
       <div 
-        key={product.id}
         onClick={() => router.push(`/menu/${product.id}`)}
         className="bg-white cursor-pointer dark:bg-[#1E1E1E] rounded-xl overflow-hidden shadow-sm border border-gray-200 dark:border-[#333333] hover:shadow-md hover:border-gray-400 hover:dark:border-[#4b4b4b] transition-all duration-500"
       >
@@ -123,8 +85,7 @@ export default function RestaurantDetail({ params }) {
                 <CldImage
                   src={getImageUrl(product)}
                   alt={product.name}
-                  width={96}
-                  height={96}
+                  fill
                   className="object-cover rounded-md"
                 />
               ) : (
@@ -171,17 +132,28 @@ export default function RestaurantDetail({ params }) {
           </div>
         </div>
       </div>
-    ));
-  }, [products, getImageUrl, formatPrice, handleAddToCart, vibratingItemId]);
+    )
+  }
+
+  useEffect(() => {
+    if (!loadMoreRef.current || isFetchingNextPage || !hasNextPage || isLoadingProducts || isLoadingRestaurant) return;
+    const observer = new IntersectionObserver((entries)=>{
+      if (entries[0].isIntersecting) {
+        fetchNextPage();
+      }
+    });
+    observer.observe(loadMoreRef.current);
+    return () => observer.disconnect();
+  }, [hasNextPage, isFetchingNextPage, fetchNextPage, isLoadingRestaurant, isLoadingProducts]);
 
   return (
     <PageLayout>
-      {loading ? (
+      {isLoadingRestaurant ? (
         <div className="flex items-center justify-center min-h-[60vh]">
-          <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-gray-900 dark:border-white"></div>
+          <CustomLoader title={"restaurant"} />
         </div>
       ) : restaurant ? (
-        <div className="container mx-auto">
+        <div className="container mx-auto py-4">
           {/* Restaurant Cover */}
           <div className="relative h-40 md:h-56 w-full mb-6">
             {
@@ -215,7 +187,7 @@ export default function RestaurantDetail({ params }) {
                 <MapPin className="h-4 w-4 mr-1 text-red-500" />
                 <span>
                   {restaurant.address || "Address not available"}
-                  {distance && <span className="ml-1">({distance.toFixed(1)} km away)</span>}
+                  {restaurant.distance && <span className="ml-1">( {isNaN(parseInt(restaurant.distance)) ? '--' : parseInt(restaurant.distance)} km's away )</span> }
                 </span>
               </div>
               {/* <div className="flex items-center">
@@ -230,17 +202,49 @@ export default function RestaurantDetail({ params }) {
           </div>
 
           {/* Products */}
-          <h2 className="text-lg font-semibold mb-4 text-gray-900 dark:text-white">Menu</h2>
+          <div className="flex flex-col gap-4">
+    
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Menu</h2>
+            <InputGroup>
+                  <InputGroupInput
+                    type="text"
+                    placeholder="Search items..."
+                    value={searchText}
+                    onChange={(e) => setSearchText(e.target.value)}
+                  />
+                  <InputGroupAddon>
+                    <Search />
+                  </InputGroupAddon>
+            </InputGroup>
+            {
+              isLoadingProducts && (
+                <div className="flex items-center justify-center p-8">
+                  <CustomLoader title="items" />
+                </div>
+              )
+            }
           
-          {products.length > 0 ? (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-10">
-              {productCards}
-            </div>
-          ) : (
-            <div className="text-center py-12 bg-white dark:bg-[#1E1E1E] rounded-xl">
-              <p className="text-gray-500 dark:text-gray-400">No products available from this restaurant. <br /> <span className="text-gray-300 font-semibold">AT THIS MOMENT</span></p>
-            </div>
-          )}
+            {products.length > 0 ? (
+              <>
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mb-10">
+                  {products.map((product) => (
+                    <ProductCard key={product.id} product={product} />
+                  ))}
+                </div>
+              </>
+            ) : (
+              
+                !isLoadingProducts && (
+                  <div className="text-center py-12 bg-white dark:bg-[#1E1E1E] rounded-xl">
+                    <p className="text-gray-500 dark:text-gray-400">No products available from this restaurant. <br /> <span className="text-gray-300 font-semibold">AT THIS MOMENT</span></p>
+                  </div>
+
+                )
+              
+            )}
+
+          </div>
+
         </div>
       ) : (
         <div className="flex flex-col items-center justify-center min-h-[60vh]">
@@ -253,6 +257,24 @@ export default function RestaurantDetail({ params }) {
           </button>
         </div>
       )}
+
+      {/* Infinite Scroll Trigger */}
+      <div 
+        ref={loadMoreRef} 
+        className="text-muted-foreground flex h-10 justify-center items-center"
+      >
+        {isFetchingNextPage && (
+          <div className="flex justify-center">
+            <CustomLoader title="items" />
+          </div>
+        )}
+        {!hasNextPage && products.length > 0 && (
+          <div className="w-full text-center py-4">
+            <p className="text-gray-500">No more items to load</p>
+          </div>
+        )}
+      </div>
+      
     </PageLayout>
   )
 } 

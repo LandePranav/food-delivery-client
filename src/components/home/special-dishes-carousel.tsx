@@ -1,9 +1,6 @@
 "use client"
 
-// import Image from "next/image"
-// import { ChevronLeft, ChevronRight } from "lucide-react"
-import { useState, useEffect, useContext, useRef } from "react"
-import api from "@/lib/axios"
+import { useState, useEffect, useContext, useRef, useMemo } from "react"
 import { context } from "@/context/contextProvider"
 import { Button } from "@/components/ui/button"
 import { motion } from "framer-motion"
@@ -11,6 +8,8 @@ import { CldImage } from "next-cloudinary"
 import { useRouter } from "next/navigation"
 import { Carousel, CarouselContent, CarouselItem, CarouselNext, CarouselPrevious } from "@/components/ui/carousel"
 import { UtensilsCrossed, ShoppingCart } from "lucide-react"
+import { useFetchInfiniteProducts } from "@/queries/useProducts"
+import { useGeolocation } from "@/hooks/useGeoLocation"
 
 interface Dish {
   id: string
@@ -27,122 +26,66 @@ interface Dish {
 
 export default function SpecialDishesCarousel() {
   const router = useRouter()
-  const [specialDishes, setSpecialDishes] = useState<Dish[]>([])
-  const [currentIndex, setCurrentIndex] = useState(0)
-  const [loading, setLoading] = useState(true)
-  const { setCartItems, userLocation } = useContext(context)
   const [vibratingItemId, setVibratingItemId] = useState<string | null>(null)
   const [currentImageIndices, setCurrentImageIndices] = useState<Record<string, number>>({})
-  const [slideIntervals, setSlideIntervals] = useState<Record<string, number>>({})
-  const [slidesPerView, setSlidesPerView] = useState(1)
-  const fetchGuardRef = useRef(false)
+  const slideIntervalsRef = useRef<Record<string, number>>({})
+  const { setCartItems } = useContext(context)
 
-  // Calculate card width based on slidesPerView
-  const cardWidth = 100 / slidesPerView
-  const gapWidth = 4 // 1rem gap
-  const totalWidth = specialDishes.length * (cardWidth + gapWidth)
+  const {location} = useGeolocation();
+  const {data: productResponse, isLoading} = useFetchInfiniteProducts(
+    location?.lat, 
+    location?.lng, 
+    "", 
+    "all", 
+    20, 
+    '', 
+    {featured: "true"}
+  );
 
-  // Debug logging
+  // Memoize the products array
+  const products = useMemo(() => 
+    productResponse ? productResponse.pages.flatMap(page => page.formattedProducts) : []
+  , [productResponse]);
+
+  // Initialize image indices and intervals only once when products change
   useEffect(() => {
-    console.log({
-      currentIndex,
-      cardWidth,
-      gapWidth,
-      totalWidth,
-      transform: -(cardWidth * currentIndex)
-    })
-  }, [currentIndex, cardWidth, gapWidth, totalWidth])
+    if (!products.length) return;
 
-  useEffect(() => {
-    const fetchSpecialDishes = async () => {
-      if (fetchGuardRef.current) return
-      // Require location before fetching; do not flip the guard yet
-      if (!userLocation) return
-      fetchGuardRef.current = true
-      try {
-        // Build query parameters
-        const params = new URLSearchParams()
-        // Always request featured dishes
-        params.append("featured", "true")
-        
-        params.append('lat', userLocation.latitude.toString())
-        params.append('lng', userLocation.longitude.toString())
-        const response = await api.get(`/products?${params.toString()}`)
-        if (response.status === 200) {
-          if (response.data && Array.isArray(response.data) && response.data.length > 0) {
-            // const filteredDishes = response.data.filter((dish: Dish) => dish.isFeatured === true)
-            const filteredDishes = response.data
-            setSpecialDishes(filteredDishes ?? [])
-            
-            // Initialize image indices for each dish
-            const initialIndices: Record<string, number> = {}
-            const initialIntervals: Record<string, number> = {}
-            
-            if(filteredDishes.length > 0){
-              filteredDishes.forEach((dish: Dish) => {
-                initialIndices[dish.id] = 0
-                initialIntervals[dish.id] = Math.floor(Math.random() * 5000) + 5000
-              })
-            }
-            
-            setCurrentImageIndices(initialIndices)
-            setSlideIntervals(initialIntervals)
-            
-          } else {
-            console.error("No special dishes data received:", response.data)
-            setSpecialDishes([])
-          }
-        }
-      } catch (error) {
-        console.error("Error fetching special dishes:", error)
-        setSpecialDishes([])
-      } finally {
-        setLoading(false)
+    const newIndices: Record<string, number> = {};
+    products.forEach((dish: Dish) => {
+      if (!(dish.id in currentImageIndices)) {
+        newIndices[dish.id] = 0;
+        slideIntervalsRef.current[dish.id] = Math.floor(Math.random() * 5000) + 5000;
       }
-    }
-    
-    fetchSpecialDishes()
+    });
 
-    // Update responsive behavior
-    const handleResize = () => {
-      if (window.innerWidth >= 1024) { // lg
-        setSlidesPerView(3)
-      } else if (window.innerWidth >= 768) { // md
-        setSlidesPerView(2)
-      } else {
-        setSlidesPerView(1)
-      }
-      // Reset to first slide when resizing to avoid blank spaces
-      setCurrentIndex(0)
+    if (Object.keys(newIndices).length > 0) {
+      setCurrentImageIndices(prev => ({...prev, ...newIndices}));
     }
-
-    handleResize()
-    window.addEventListener('resize', handleResize)
-    return () => window.removeEventListener('resize', handleResize)
-  }, [userLocation])
+  }, [products]);
 
   // Image slideshow effect
   useEffect(() => {
-    const intervalIds: NodeJS.Timeout[] = []
+    if (!products.length) return;
     
-    specialDishes.forEach((dish) => {
-      if (dish.imageUrls && dish.imageUrls.length > 1) {
-        const interval = slideIntervals[dish.id] || 5000
+    const intervalIds = new Map<string, NodeJS.Timeout>();
+    
+    products.forEach((dish) => {
+      if (dish.imageUrls?.length > 1) {
+        const interval = slideIntervalsRef.current[dish.id] || 5000;
         const intervalId = setInterval(() => {
-          setCurrentImageIndices((prevIndices) => ({
-            ...prevIndices,
-            [dish.id]: ((prevIndices[dish.id] || 0) + 1) % dish.imageUrls.length
-          }))
-        }, interval)
+          setCurrentImageIndices(prev => ({
+            ...prev,
+            [dish.id]: ((prev[dish.id] || 0) + 1) % dish.imageUrls.length
+          }));
+        }, interval);
         
-        intervalIds.push(intervalId)
+        intervalIds.set(dish.id, intervalId);
       }
-    })
+    });
     
-    return () => {
-      intervalIds.forEach(id => clearInterval(id))
-    }
-  }, [specialDishes, slideIntervals])
+    return () => intervalIds.forEach(id => clearInterval(id));
+  }, [products]);
 
   const handleAddToCart = (dish: Dish) => {
     const item = {
@@ -174,7 +117,7 @@ export default function SpecialDishesCarousel() {
     router.push(`/menu/${id}`)
   }
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="my-6 px-4">
         <div className="container mx-auto">
@@ -189,7 +132,7 @@ export default function SpecialDishesCarousel() {
     )
   }
 
-  if (specialDishes.length === 0) {
+  if (!products.length) {
     return (
       <div className="my-6 px-4">
         <div className="container mx-auto">
@@ -210,81 +153,71 @@ export default function SpecialDishesCarousel() {
         <h2 className="text-lg font-bold text-gray-800 dark:text-white">Featured Special Dishes</h2>
       </div>
       
-      {loading ? (
-        <div className="flex justify-center py-8 bg-white dark:bg-[#1E1E1E] rounded-xl shadow-sm">
-          <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-orange-500"></div>
-        </div>
-      ) : specialDishes.length > 0 ? (
-        <Carousel>
-          <CarouselContent className="-ml-4">
-            {specialDishes.map((dish) => (
-              <CarouselItem key={dish.id} className="pl-4 md:basis-1/2 lg:basis-1/3"  >
-                <div 
-                  className="overflow-hidden border-none shadow-md rounded-2xl dark:bg-[#1E1E1E] dark:text-white bg-white h-full flex flex-col cursor-pointer hover:shadow-lg transition-shadow duration-300"
-                  onClick={() => navigateToProductDetail(dish.id)}
-                >
-                  <div className="relative h-40 w-full overflow-hidden">
-                    {dish.imageUrls && dish.imageUrls.length > 0 ? (
-                      <CldImage 
-                        src={getImageUrl(dish)} 
-                        alt={`${dish.name}`} 
-                        fill
-                        sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
-                        className="object-cover"
-                      />
-                    ) : (
-                      <div className="flex items-center justify-center h-full bg-gray-100 dark:bg-[#262626]">
-                        <UtensilsCrossed className="w-14 h-14 text-gray-400 dark:text-gray-600" />
-                      </div>
-                    )}
-                  </div>
-                  <div className="p-3 flex-1 flex flex-col dark:bg-[#1E1E1E]">
-                    <h3 className="font-bold text-gray-800 dark:text-white text-sm line-clamp-1">{dish.name}</h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{getSellerName(dish)}</p>
-                    <div className="mt-2 flex items-center justify-between">
-                      <span className="font-bold text-orange-500 dark:text-white">₹ {dish.price?.toFixed(2) || "0.00"}</span>
-                      <Button
-                        onClick={(e) => {
-                          e.stopPropagation(); // Prevent card click
-                          handleAddToCart(dish)
-                        }}
-                        size="icon"
-                        className="h-8 w-8 rounded-full bg-red-500 dark:bg-red-600 text-white hover:bg-red-600 dark:hover:bg-red-700 transition-colors"
-                      >
-                        <motion.div
-                          animate={{
-                            rotate: vibratingItemId === dish.id ? [0, -10, 10, -10, 10, 0] : 0,
-                            scale: vibratingItemId === dish.id ? 1.3 : 1,
-                          }}
-                          transition={{
-                            rotate: {
-                              type: "tween",
-                              duration: 0.5,
-                            },
-                            scale: {
-                              type: "spring",
-                              stiffness: 300,
-                              damping: 10,
-                            }
-                          }}
-                        >
-                          <ShoppingCart className="w-4 h-4" />
-                        </motion.div>
-                      </Button>
+      <Carousel>
+        <CarouselContent className="-ml-4">
+          {products.map((dish) => (
+            <CarouselItem key={dish.id} className="pl-4 md:basis-1/2 lg:basis-1/3"  >
+              <div 
+                className="overflow-hidden border-none shadow-md rounded-2xl dark:bg-[#1E1E1E] dark:text-white bg-white h-full flex flex-col cursor-pointer hover:shadow-lg transition-shadow duration-300"
+                onClick={() => navigateToProductDetail(dish.id)}
+              >
+                <div className="relative h-40 w-full overflow-hidden">
+                  {dish.imageUrls && dish.imageUrls.length > 0 ? (
+                    <CldImage 
+                      src={getImageUrl(dish)} 
+                      alt={`${dish.name}`} 
+                      fill
+                      sizes="(max-width: 768px) 100vw, (max-width: 1200px) 50vw, 33vw"
+                      className="object-cover"
+                    />
+                  ) : (
+                    <div className="flex items-center justify-center h-full bg-gray-100 dark:bg-[#262626]">
+                      <UtensilsCrossed className="w-14 h-14 text-gray-400 dark:text-gray-600" />
                     </div>
+                  )}
+                </div>
+                <div className="p-3 flex-1 flex flex-col dark:bg-[#1E1E1E]">
+                  <h3 className="font-bold text-gray-800 dark:text-white text-sm line-clamp-1">{dish.name}</h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{getSellerName(dish)}</p>
+                  <div className="mt-2 flex items-center justify-between">
+                    <span className="font-bold text-orange-500 dark:text-white">₹ {dish.price?.toFixed(2) || "0.00"}</span>
+                    <Button
+                      onClick={(e) => {
+                        e.stopPropagation(); // Prevent card click
+                        handleAddToCart(dish)
+                      }}
+                      size="icon"
+                      className="h-8 w-8 rounded-full bg-red-500 dark:bg-red-600 text-white hover:bg-red-600 dark:hover:bg-red-700 transition-colors"
+                    >
+                      <motion.div
+                        animate={{
+                          rotate: vibratingItemId === dish.id ? [0, -10, 10, -10, 10, 0] : 0,
+                          scale: vibratingItemId === dish.id ? 1.3 : 1,
+                        }}
+                        transition={{
+                          rotate: {
+                            type: "tween",
+                            duration: 0.5,
+                          },
+                          scale: {
+                            type: "spring",
+                            stiffness: 300,
+                            damping: 10,
+                          }
+                        }}
+                      >
+                        <ShoppingCart className="w-4 h-4" />
+                      </motion.div>
+                    </Button>
                   </div>
                 </div>
-              </CarouselItem>
-            ))}
-          </CarouselContent>
-          <CarouselPrevious />
-          <CarouselNext />
-        </Carousel>
-      ) : (
-        <div className="flex justify-center items-center py-8 bg-white dark:bg-[#1E1E1E] rounded-xl shadow-sm">
-          <p className="text-gray-500 dark:text-gray-400">No featured dishes available</p>
-        </div>
-      )}
+              </div>
+            </CarouselItem>
+          ))}
+        </CarouselContent>
+        <CarouselPrevious />
+        <CarouselNext />
+      </Carousel>
     </div>
   )
-} 
+}
