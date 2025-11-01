@@ -1,5 +1,5 @@
 import Razorpay from "razorpay";
-import { addHours } from 'date-fns';
+// import { addHours } from 'date-fns';
 
 import { NextResponse } from "next/server";
 
@@ -15,8 +15,8 @@ const razorpay = new Razorpay({
 
 export async function POST(request) {
     // Get current time in IST
-    const currentISTTime = addHours(new Date(), 5.5);
-    const currentHour = currentISTTime.getUTCHours();
+    // const currentISTTime = addHours(new Date(), 5.5);
+    // const currentHour = currentISTTime.getUTCHours();
 
     // Check if current time is between 12 AM and 6 AM IST
     // if (currentHour >= 0 && currentHour < 6) {

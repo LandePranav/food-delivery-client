@@ -1,11 +1,11 @@
 "use client"
 
-import { useState, useEffect, useContext, useRef, useMemo } from "react"
+import { useContext } from "react"
 import Image from "next/image"
 import Link from "next/link"
 import { Store } from "lucide-react"
 // import { Star, Store } from "lucide-react"
-import api from "@/lib/axios"
+
 import { context } from "@/context/contextProvider"
 
 interface Restaurant {

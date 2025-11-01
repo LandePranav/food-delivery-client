@@ -1,5 +1,4 @@
 import {NextResponse } from "next/server";
-import prisma from "@/lib/prismadb";
 import RestoService from "@/services/restoService";
 
 export async function GET(request) {

@@ -1,7 +1,6 @@
 "use client"
 import api from "@/lib/axios";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
-import { use } from "react";
 import { toast } from "sonner";
 
 export const useFetchInfiniteRestaurants = (lat, lng, searchQuery, limit=9) => {
