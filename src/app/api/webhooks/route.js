@@ -72,12 +72,13 @@ export async function POST(request) {
 
             //sending web push notification to admins
             if (admins.length > 0) {
-                admins.forEach(async () => {
-                    await fetch(`${process.env.SELLER_API_URL}/web-push/send`, {
+                const adminNotifications = admins.map((admin)=> {
+                    return fetch(`${process.env.SELLER_API_URL}/web-push/send`, {
                         method: "POST",
                         body: JSON.stringify({ sellerId: updatedOrder.seller.id, message:`Order: \n${updatedOrder.productList.map((item) => `${item.name} x${item.quantity}\n` ).join(" ")}`  })
-                    })
+                    }) 
                 })
+                await Promise.all(adminNotifications);
             }
 
             //send web push to seller himself if he is not admin
