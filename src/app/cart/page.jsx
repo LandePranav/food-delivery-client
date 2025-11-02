@@ -33,7 +33,15 @@ export default function Cart() {
     const [addresses, setAddresses] = useState([]);
     const [showAddressForm, setShowAddressForm] = useState(false);
     const [newAddress, setNewAddress] = useState("");
-    const [userLocation, setUserLocation] = useState({ latitude: 0, longitude: 0 });
+    const [userLocation, setUserLocation] = useState({
+        latitude: 0,
+        longitude: 0,
+        accuracy: null,
+        timestamp: null,
+        altitude: null,
+        heading: null,
+        speed: null
+    });
     const [locationError, setLocationError] = useState(null);
 
     // Calculate total quantity of items in cart
@@ -52,41 +60,83 @@ export default function Cart() {
             }
 
             const options = {
-                enableHighAccuracy: true,
-                timeout: 10000,
-                maximumAge: 0
+                enableHighAccuracy: true,  // Request the highest possible accuracy
+                timeout: 15000,           // Increased timeout for better accuracy
+                maximumAge: 0             // Always get fresh position
             };
 
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
+            let watchId;
+            let hasResolved = false;
+            const accuracyThreshold = 100; // 100 meters accuracy threshold
+            const maxAttempts = 5;
+            let attempts = 0;
+
+            const handleSuccess = (position) => {
+                attempts++;
+                // Check if accuracy is good enough
+                if (position.coords.accuracy <= accuracyThreshold) {
                     const location = {
                         latitude: position.coords.latitude,
-                        longitude: position.coords.longitude
+                        longitude: position.coords.longitude,
+                        accuracy: position.coords.accuracy,
+                        timestamp: position.timestamp,
+                        altitude: position.coords.altitude,
+                        heading: position.coords.heading,
+                        speed: position.coords.speed
                     };
+                    
                     setUserLocation(location);
                     setLocationError(null);
-                    resolve(location);
-                },
-                (error) => {
-                    let errorMessage = "Unknown location error occurred.";
                     
-                    switch(error.code) {
-                        case error.PERMISSION_DENIED:
-                            errorMessage = "Location permission was denied. Please enable location services in your browser settings.";
-                            break;
-                        case error.POSITION_UNAVAILABLE:
-                            errorMessage = "Location information is unavailable. Please try again.";
-                            break;
-                        case error.TIMEOUT:
-                            errorMessage = "Location request timed out. Please try again.";
-                            break;
+                    if (!hasResolved) {
+                        hasResolved = true;
+                        if (watchId) navigator.geolocation.clearWatch(watchId);
+                        resolve(location);
                     }
-                    
+                } else if (attempts >= maxAttempts) {
+                    // If we've tried enough times but accuracy isn't good enough
+                    if (watchId) navigator.geolocation.clearWatch(watchId);
+                    const errorMessage = "Could not get accurate location. Please ensure you're in an open area and try again.";
                     setLocationError(errorMessage);
                     reject(new Error(errorMessage));
-                },
-                options
-            );
+                }
+            };
+
+            const handleError = (error) => {
+                let errorMessage = "Unknown location error occurred.";
+                
+                switch(error.code) {
+                    case error.PERMISSION_DENIED:
+                        errorMessage = "Location permission was denied. Please enable location services in your browser settings.";
+                        break;
+                    case error.POSITION_UNAVAILABLE:
+                        errorMessage = "Location information is unavailable. Please ensure you're not in a basement or area with poor GPS signal.";
+                        break;
+                    case error.TIMEOUT:
+                        errorMessage = "Location request timed out. Please try again in an open area.";
+                        break;
+                }
+                
+                setLocationError(errorMessage);
+                if (watchId) navigator.geolocation.clearWatch(watchId);
+                reject(new Error(errorMessage));
+            };
+
+            // First try to get a quick position
+            navigator.geolocation.getCurrentPosition(handleSuccess, handleError, options);
+
+            // Then start watching position for better accuracy
+            watchId = navigator.geolocation.watchPosition(handleSuccess, handleError, options);
+
+            // Set a timeout to stop watching after 15 seconds if we haven't got an accurate position
+            setTimeout(() => {
+                if (!hasResolved) {
+                    if (watchId) navigator.geolocation.clearWatch(watchId);
+                    const errorMessage = "Could not get accurate enough location. Please try again in an open area.";
+                    setLocationError(errorMessage);
+                    reject(new Error(errorMessage));
+                }
+            }, 15000);
         });
     };
 
@@ -178,29 +228,57 @@ export default function Cart() {
             return;
         }
 
-        // Check if we have valid GPS location
-        if (userLocation.latitude === 0 && userLocation.longitude === 0) {
-            toast.error("We need your location for delivery. Please allow location access.");
+        // Check location validity and accuracy
+        if (!userLocation || !userLocation.accuracy || userLocation.latitude === 0 || userLocation.longitude === 0) {
+            toast.error("We need your accurate location for delivery. Please allow location access.");
             
             try {
                 const location = await requestLocationPermission();
                 
-                // Double-check if we got valid coordinates
-                if (location.latitude === 0 && location.longitude === 0) {
+                // Validate accuracy and freshness
+                if (!location || !location.accuracy || location.accuracy > 100) {
                     setAlertType("error");
-                    toast.error("Could not get valid location coordinates. Please try again.");
+                    toast.error("Could not get accurate enough location. Please try again in an open area.");
                     return;
                 }
+
+                // Check if location is fresh (not older than 5 minutes)
+                const locationAge = Date.now() - (location.timestamp || 0);
+                if (locationAge > 300000) { // 5 minutes in milliseconds
+                    toast.error("Location data is too old. Getting fresh location...");
+                    const newLocation = await requestLocationPermission();
+                    if (!newLocation || !newLocation.accuracy || newLocation.accuracy > 100) {
+                        toast.error("Could not get accurate location. Please try again.");
+                        return;
+                    }
+                }
             } catch (error) {
-                toast.error("Location permission is required for delivery. Please enable location access and try again.");
+                toast.error(error.message || "Location permission is required for delivery. Please enable location access and try again.");
                 return;
             }
         }
-        
-        // Validate GPS coordinates are not at null island (0,0)
-        if (userLocation.latitude === 0 && userLocation.longitude === 0) {
-            toast.error("Invalid location detected. Please refresh and allow location access.");
-            return;
+
+        // Validate GPS accuracy for existing location
+        if (userLocation.accuracy > 100) { // If accuracy is worse than 100 meters
+            toast.error("Location is not accurate enough. Getting better location...");
+            try {
+                await requestLocationPermission();
+            } catch (error) {
+                toast.error("Could not get accurate location. Please ensure you're in an open area.");
+                return;
+            }
+        }
+
+        // Check location freshness
+        const locationAge = Date.now() - (userLocation.timestamp || 0);
+        if (locationAge > 300000) { // 5 minutes in milliseconds
+            toast.error("Location data is too old. Getting fresh location...");
+            try {
+                await requestLocationPermission();
+            } catch (error) {
+                toast.error("Could not update location. Please try again.");
+                return;
+            }
         }
         
         // Check if all products belong to the same restaurant

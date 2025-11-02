@@ -30,6 +30,32 @@ export async function POST(request) {
         if (!data.address || data.address.trim() === '') {
             return NextResponse.json({ error: "Delivery address is required" }, { status: 400 });
         }
+
+        // Validate GPS location data
+        if (!data.gpsLocation || 
+            !data.gpsLocation.latitude || 
+            !data.gpsLocation.longitude || 
+            !data.gpsLocation.accuracy || 
+            !data.gpsLocation.timestamp) {
+            return NextResponse.json({ 
+                error: "Accurate GPS location is required for delivery" 
+            }, { status: 400 });
+        }
+
+        // Validate location accuracy
+        if (data.gpsLocation.accuracy > 100) { // accuracy worse than 100 meters
+            return NextResponse.json({ 
+                error: "Location accuracy is too low. Please try again in a more open area" 
+            }, { status: 400 });
+        }
+
+        // Check if location data is fresh (not older than 5 minutes)
+        const locationAge = Date.now() - data.gpsLocation.timestamp;
+        if (locationAge > 900000) { // 15 minutes in milliseconds
+            return NextResponse.json({ 
+                error: "Location data is too old. Please refresh your location" 
+            }, { status: 400 });
+        }
         
         // Create Razorpay order (not payment)
         const razorpayOrder = await razorpay.orders.create({
