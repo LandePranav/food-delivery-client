@@ -75,7 +75,7 @@ export async function POST(request) {
                 const adminNotifications = admins.map((admin)=> {
                     return fetch(`${process.env.SELLER_API_URL}/web-push/send`, {
                         method: "POST",
-                        body: JSON.stringify({ sellerId: updatedOrder.seller.id, message:`Order: \n${updatedOrder.productList.map((item) => `${item.name} x${item.quantity}\n` ).join(" ")}`  })
+                        body: JSON.stringify({ sellerId: admin.id, message:`Seller: ${updatedOrder.seller?.restaurantName || updatedOrder.seller?.username} Order: \n${updatedOrder.productList.map((item) => `${item.name} x${item.quantity}\n` ).join(" ")}`  })
                     }) 
                 })
                 await Promise.all(adminNotifications);
