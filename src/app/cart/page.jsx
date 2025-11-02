@@ -1,7 +1,4 @@
 "use client"
-import { CartProductTable } from "@/components/cart/cartProductTable";
-import { Card, CardHeader, CardTitle, CardContent} from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { useState, useEffect } from "react";
 import { useContext } from "react";
@@ -11,13 +8,12 @@ import { useSession } from "next-auth/react";
 import CustomAlert from "@/components/common/customAlert";
 import { useRouter } from "next/navigation";
 import { PageLayout } from "@/components/layout/page-layout";
-import { LockIcon } from "lucide-react";
 import Link from "next/link";
 import { ShoppingCart, Trash, Lock, Plus, Minus, AlertTriangle, UtensilsCrossed } from "lucide-react";
-import Image from "next/image";
 import api from "@/lib/axios";
 import { CldImage } from "next-cloudinary";
 import { toast } from "sonner";
+import {useFetchDeliveryCharge} from "@/queries/useCart";
 
 export default function Cart() {
     const {cartItems, setCartItems, addToCart, removeFromCart, removeItemCompletely, calculateCartTotal} = useContext(context);
@@ -28,7 +24,6 @@ export default function Cart() {
     const [alertMessage, setAlertMessage] = useState("");
     const [alertType, setAlertType] = useState("success");
     const router = useRouter();
-    const [deliveryCharge, setDeliveryCharge] = useState(0);
     const [formData, setFormData] = useState({
         name: "",
         email: "",
@@ -43,14 +38,8 @@ export default function Cart() {
 
     // Calculate total quantity of items in cart
     const totalCartItems = cartItems.reduce((total, item) => total + (item.quantity || 1), 0);
-
-    useEffect(() => {
-        const fetchDeliveryCharge = async () => {
-            const response = await api.get('/cart');
-            setDeliveryCharge(response.data.deliveryCharge);
-        };
-        fetchDeliveryCharge();
-    }, []);
+    const {data:deliveryChargeData} = useFetchDeliveryCharge();
+    const deliveryCharge = deliveryChargeData?.deliveryCharge || 0;
 
     // Get user's current location
     const requestLocationPermission = () => {
@@ -129,7 +118,6 @@ export default function Cart() {
         try {
             const response = await api.get('/users');
             const userInfo = response.data;
-            console.log(userInfo);
             setAddresses(userInfo.addresses || []);
             
             setFormData(prev => ({

@@ -8,7 +8,7 @@ const prisma = new PrismaClient().$extends(withAccelerate());
 export async function GET() {
     
     const seller = await prisma.seller.findFirst();
-    const deliveryCharge = seller.deliveryCharge;
+    const deliveryCharge = seller?.deliveryCharge || 0;
 
     return NextResponse.json({ deliveryCharge });
 }
