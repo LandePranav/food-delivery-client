@@ -43,6 +43,7 @@ export default function Cart() {
         speed: null
     });
     const [locationError, setLocationError] = useState(null);
+    const [isLoadingLocation, setIsLoadingLocation] = useState(false);
 
     // Calculate total quantity of items in cart
     const totalCartItems = cartItems.reduce((total, item) => total + (item.quantity || 1), 0);
@@ -52,9 +53,11 @@ export default function Cart() {
     // Get user's current location
     const requestLocationPermission = () => {
         return new Promise((resolve, reject) => {
+            setIsLoadingLocation(true);
             if (!navigator.geolocation) {
                 const error = "Geolocation is not supported by this browser.";
                 setLocationError(error);
+                setIsLoadingLocation(false);
                 reject(new Error(error));
                 return;
             }
@@ -91,6 +94,7 @@ export default function Cart() {
                     if (!hasResolved) {
                         hasResolved = true;
                         if (watchId) navigator.geolocation.clearWatch(watchId);
+                        setIsLoadingLocation(false);
                         resolve(location);
                     }
                 } else if (attempts >= maxAttempts) {
@@ -118,6 +122,7 @@ export default function Cart() {
                 }
                 
                 setLocationError(errorMessage);
+                setIsLoadingLocation(false);
                 if (watchId) navigator.geolocation.clearWatch(watchId);
                 reject(new Error(errorMessage));
             };
@@ -152,16 +157,36 @@ export default function Cart() {
     }, [cartItems, calculateCartTotal]);
     
     // Automatically request location when component mounts
+    // Request location immediately when cart page loads
     useEffect(() => {
-        if (cartItems.length > 0 && session?.user) {
-            // Only request location if we have items in cart and user is logged in
+        // If user has items in cart or is logged in, get location
+        if (cartItems.length > 0 || session?.user) {
             requestLocationPermission().catch(error => {
                 console.log("Initial location request failed:", error.message);
                 // Don't show alert on initial load, just set the error state
                 setLocationError(error.message);
             });
         }
-    }, [cartItems.length, session]);
+
+        // Set up periodic location refresh every 5 minutes if user has items in cart
+        let locationInterval;
+        if (cartItems.length > 0) {
+            locationInterval = setInterval(() => {
+                // Only refresh if the user has items in cart
+                if (cartItems.length > 0) {
+                    requestLocationPermission().catch(error => {
+                        console.log("Location refresh failed:", error.message);
+                    });
+                }
+            }, 300000); // 5 minutes
+        }
+
+        return () => {
+            if (locationInterval) {
+                clearInterval(locationInterval);
+            }
+        };
+    }, [session, cartItems.length]);
     
     // Fetch user addresses
     const fetchUserInfo = async () => {
@@ -698,13 +723,21 @@ export default function Cart() {
                                             {/* Location Status */}
                                             <div className="mb-4">
                                                 <div className="flex items-center justify-between">
-                                                    <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                                                        Delivery Location
-                                                    </p>
+                                                    <div className="flex items-center gap-2">
+                                                        <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                                                            Delivery Location
+                                                        </p>
+                                                        {isLoadingLocation && (
+                                                            <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-red-500"></div>
+                                                        )}
+                                                    </div>
                                                     <button
                                                         type="button"
                                                         onClick={requestLocationPermission}
-                                                        className="text-xs text-red-500 hover:text-red-600"
+                                                        disabled={isLoadingLocation}
+                                                        className={`text-xs text-red-500 hover:text-red-600 ${
+                                                            isLoadingLocation ? 'opacity-50 cursor-not-allowed' : ''
+                                                        }`}
                                                     >
                                                         {userLocation.latitude === 0 && userLocation.longitude === 0
                                                             ? "Share Location"
